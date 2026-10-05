@@ -1,189 +1,201 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Vérification des numéros</title>
+<title>Numéros doublons</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background: #f5f5f5;
-      color: #222;
-    }
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 20px;
+  color: #222;
+}
 
-    h1 {
-      text-align: center;
-      font-size: 24px;
-    }
+h1 {
+  text-align: center;
+  font-size: 24px;
+}
 
-    .box {
-      background: white;
-      padding: 18px;
-      border-radius: 14px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
+.box {
+  background: white;
+  padding: 18px;
+  border-radius: 14px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
 
-    button,
-    label.button {
-      display: block;
-      width: 100%;
-      box-sizing: border-box;
-      padding: 14px;
-      margin-top: 10px;
-      border: 0;
-      border-radius: 10px;
-      background: #007aff;
-      color: white;
-      font-size: 17px;
-      text-align: center;
-      cursor: pointer;
-    }
+.button,
+button {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #007aff;
+  color: white;
+  font-size: 17px;
+  text-align: center;
+}
 
-    input[type="file"] {
-      display: none;
-    }
+input[type="file"] {
+  display: none;
+}
 
-    #status {
-      margin-top: 15px;
-      font-weight: bold;
-      text-align: center;
-    }
+#status {
+  text-align: center;
+  font-weight: bold;
+  margin-top: 15px;
+}
 
-    .result {
-      margin-top: 10px;
-      padding: 12px;
-      border-radius: 8px;
-      background: #f0f0f0;
-    }
+progress {
+  width: 100%;
+  height: 20px;
+  margin-top: 10px;
+}
 
-    .duplicate {
-      color: #c00;
-      font-weight: bold;
-    }
+.result {
+  background: #f0f0f0;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 8px;
+}
 
-    .warning {
-      background: #fff3cd;
-      color: #856404;
-      margin-top: 8px;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 14px;
-    }
+.number {
+  font-family: monospace;
+  font-size: 17px;
+  margin: 5px 0;
+}
 
-    .number {
-      font-family: monospace;
-      font-size: 17px;
-      margin: 4px 0;
-    }
+.duplicate {
+  color: #c00;
+  font-weight: bold;
+}
 
-    .small {
-      font-size: 13px;
-      color: #666;
-    }
-
-    progress {
-      width: 100%;
-      height: 20px;
-      margin-top: 10px;
-    }
-  </style>
+.warning {
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+</style>
 </head>
 
 <body>
 
-  <h1>📱 Vérification des numéros</h1>
+<h1>📱 Vérification des numéros</h1>
 
-  <div class="box">
+<div class="box">
 
-    <label class="button" for="libraryInput">
-      📷 Choisir des photos
-    </label>
+<label class="button" for="libraryInput">
+📷 Choisir des photos
+</label>
 
-    <input
-      id="libraryInput"
-      type="file"
-      accept="image/*"
-      multiple
-    >
+<input
+  id="libraryInput"
+  type="file"
+  accept="image/*"
+  multiple
+>
 
-    <label class="button" for="cameraInput">
-      📸 Prendre une photo
-    </label>
+<label class="button" for="cameraInput">
+📸 Prendre une photo
+</label>
 
-    <input
-      id="cameraInput"
-      type="file"
-      accept="image/*"
-      capture="environment"
-    >
+<input
+  id="cameraInput"
+  type="file"
+  accept="image/*"
+  capture="environment"
+>
 
-    <button id="processButton">
-      🔍 Vérifier les numéros
-    </button>
+<button id="processButton">
+🔍 Vérifier les numéros
+</button>
 
-    <div id="status"></div>
+<div id="status"></div>
 
-    <progress id="progress" value="0" max="100" hidden></progress>
+<progress id="progress" value="0" max="100" hidden></progress>
 
-  </div>
+</div>
 
-  <div class="box" id="results" hidden>
+<div class="box" id="results" hidden>
 
-    <div class="result">
-      <strong>Total reconnu :</strong>
-      <span id="total">0</span>
-    </div>
+<div class="result">
+<strong>Total reconnu :</strong>
+<span id="total">0</span>
+</div>
 
-    <div class="result">
-      <strong>Numéros différents :</strong>
-      <span id="unique">0</span>
-    </div>
+<div class="result">
+<strong>Numéros différents :</strong>
+<span id="unique">0</span>
+</div>
 
-    <div class="result">
-      <strong>Doublons :</strong>
-      <span id="duplicateCount">0</span>
-    </div>
+<div class="result">
+<strong>Doublons :</strong>
+<span id="duplicateCount">0</span>
+</div>
 
-    <div class="result">
-      <strong>Liste des doublons :</strong>
-      <div id="duplicates"></div>
-    </div>
+<div class="result">
+<strong>Doublons trouvés :</strong>
+<div id="duplicates"></div>
+</div>
 
-    <div id="warnings"></div>
+<div id="warnings"></div>
 
-  </div>
+</div>
 
 
 <script>
 
-const libraryInput = document.getElementById("libraryInput");
-const cameraInput = document.getElementById("cameraInput");
-const processButton = document.getElementById("processButton");
+const libraryInput =
+document.getElementById("libraryInput");
 
-const status = document.getElementById("status");
-const progress = document.getElementById("progress");
+const cameraInput =
+document.getElementById("cameraInput");
 
-const results = document.getElementById("results");
-const totalElement = document.getElementById("total");
-const uniqueElement = document.getElementById("unique");
-const duplicateCountElement = document.getElementById("duplicateCount");
-const duplicatesElement = document.getElementById("duplicates");
-const warningsElement = document.getElementById("warnings");
+const processButton =
+document.getElementById("processButton");
 
+const status =
+document.getElementById("status");
+
+const progress =
+document.getElementById("progress");
+
+const results =
+document.getElementById("results");
+
+const totalElement =
+document.getElementById("total");
+
+const uniqueElement =
+document.getElementById("unique");
+
+const duplicateCountElement =
+document.getElementById("duplicateCount");
+
+const duplicatesElement =
+document.getElementById("duplicates");
+
+const warningsElement =
+document.getElementById("warnings");
 
 let selectedFiles = [];
 
 
-/* --------------------------------------------------
-   Sélection des photos
--------------------------------------------------- */
+/* ==========================================
+   SÉLECTION DES PHOTOS
+========================================== */
 
 libraryInput.addEventListener("change", function() {
 
@@ -207,49 +219,112 @@ cameraInput.addEventListener("change", function() {
 });
 
 
-/* --------------------------------------------------
-   Charger une image
--------------------------------------------------- */
+/* ==========================================
+   CHARGER IMAGE
+========================================== */
 
 function loadImage(file) {
 
   return new Promise((resolve, reject) => {
 
-    const image = new Image();
+    const img = new Image();
 
-    image.onload = () => resolve(image);
+    img.onload = () => resolve(img);
 
-    image.onerror = reject;
+    img.onerror = reject;
 
-    image.src = URL.createObjectURL(file);
+    img.src = URL.createObjectURL(file);
 
   });
 
 }
 
 
-/* --------------------------------------------------
-   Préparation d'une image
--------------------------------------------------- */
+/* ==========================================
+   PRÉPARER L'IMAGE
+========================================== */
 
-function prepareCanvas(image) {
+function prepareImage(img) {
 
   const scale = 3;
 
-  const canvas = document.createElement("canvas");
+  const canvas =
+    document.createElement("canvas");
 
-  canvas.width = image.width * scale;
-  canvas.height = image.height * scale;
+  canvas.width =
+    img.width * scale;
 
-  const ctx = canvas.getContext("2d");
+  canvas.height =
+    img.height * scale;
+
+  const ctx =
+    canvas.getContext("2d");
 
   ctx.drawImage(
-    image,
+    img,
     0,
     0,
     canvas.width,
     canvas.height
   );
+
+  return canvas;
+}
+
+
+/* ==========================================
+   AMÉLIORER UNE BANDE
+========================================== */
+
+function prepareBand(source, y, height) {
+
+  /*
+    On prend seulement la partie gauche
+    de la page.
+
+    La partie droite contient :
+    ~604XXXXXXXXXXXXX
+
+    Elle n'est donc jamais analysée.
+  */
+
+  const leftPart =
+    Math.floor(source.width * 0.52);
+
+  const canvas =
+    document.createElement("canvas");
+
+  /*
+    Agrandissement supplémentaire
+  */
+
+  const scale = 2;
+
+  canvas.width =
+    leftPart * scale;
+
+  canvas.height =
+    height * scale;
+
+  const ctx =
+    canvas.getContext("2d");
+
+  ctx.drawImage(
+    source,
+    0,
+    y,
+    leftPart,
+    height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+
+  /*
+    Noir et blanc + contraste
+  */
 
   const imageData =
     ctx.getImageData(
@@ -259,9 +334,14 @@ function prepareCanvas(image) {
       canvas.height
     );
 
-  const data = imageData.data;
+  const data =
+    imageData.data;
 
-  for (let i = 0; i < data.length; i += 4) {
+  for (
+    let i = 0;
+    i < data.length;
+    i += 4
+  ) {
 
     const r = data[i];
     const g = data[i + 1];
@@ -272,7 +352,12 @@ function prepareCanvas(image) {
       0.587 * g +
       0.114 * b;
 
-    const value = gray > 160 ? 255 : 0;
+    /*
+      Seuil assez souple.
+    */
+
+    const value =
+      gray > 145 ? 255 : 0;
 
     data[i] = value;
     data[i + 1] = value;
@@ -280,108 +365,69 @@ function prepareCanvas(image) {
 
   }
 
-  ctx.putImageData(imageData, 0, 0);
-
-  return canvas;
-}
-
-
-/* --------------------------------------------------
-   Extraire une zone
--------------------------------------------------- */
-
-function cropCanvas(
-  source,
-  x,
-  y,
-  width,
-  height
-) {
-
-  const canvas = document.createElement("canvas");
-
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
-
-  ctx.drawImage(
-    source,
-    x,
-    y,
-    width,
-    height,
+  ctx.putImageData(
+    imageData,
     0,
-    0,
-    width,
-    height
+    0
   );
 
   return canvas;
 }
 
 
-/* --------------------------------------------------
-   Nettoyer le résultat OCR
--------------------------------------------------- */
+/* ==========================================
+   EXTRAIRE LE NUMÉRO
+========================================== */
 
-function cleanOCR(text) {
+function extractNumber(text) {
 
-  return text
-    .replace(/\s/g, "")
-    .replace(/O/gi, "0")
-    .replace(/[Il|]/g, "1")
-    .replace(/S/g, "5")
-    .replace(/B/g, "8")
-    .replace(/Z/g, "2");
-
-}
-
-
-/* --------------------------------------------------
-   Chercher un numéro 212XXXXXXXXX
--------------------------------------------------- */
-
-function findPhoneNumber(text) {
-
-  const cleaned = cleanOCR(text);
+  if (!text) {
+    return null;
+  }
 
   /*
-     Cas idéal :
-     212 + 9 chiffres
+    On ne garde que les chiffres.
   */
 
-  let match = cleaned.match(/212\d{9}/);
+  let digits =
+    text.replace(/\D/g, "");
+
+  /*
+    Recherche directe :
+    212 + 9 chiffres
+  */
+
+  const match =
+    digits.match(/212\d{9}/);
 
   if (match) {
     return match[0];
   }
 
   /*
-     Certains OCR peuvent mettre des caractères
-     parasites entre les chiffres.
+    Si Tesseract ajoute quelques chiffres
+    avant le numéro, on cherche 212
+    n'importe où.
   */
 
-  const digits = cleaned.replace(/\D/g, "");
+  const position =
+    digits.indexOf("212");
 
-  match = digits.match(/212\d{9}/);
+  if (position >= 0) {
 
-  if (match) {
-    return match[0];
-  }
+    const candidate =
+      digits.substring(
+        position,
+        position + 12
+      );
 
-  /*
-     Dernier cas :
-     si le texte commence par 212 et contient
-     suffisamment de chiffres.
-  */
+    if (
+      /^212\d{9}$/.test(candidate)
+    ) {
 
-  if (
-    digits.length >= 12 &&
-    digits.substring(0, 3) === "212"
-  ) {
+      return candidate;
 
-    return digits.substring(0, 12);
+    }
 
   }
 
@@ -389,46 +435,23 @@ function findPhoneNumber(text) {
 }
 
 
-/* --------------------------------------------------
-   OCR d'une ligne
--------------------------------------------------- */
+/* ==========================================
+   DÉTECTER LES LIGNES
+========================================== */
 
-async function readLine(worker, canvas) {
-
-  const result = await worker.recognize(canvas);
-
-  return result.data.text || "";
-
-}
-
-
-/* --------------------------------------------------
-   Traiter une photo
--------------------------------------------------- */
-
-async function processPhoto(
-  worker,
-  file,
-  photoNumber,
-  totalPhotos
-) {
-
-  const image = await loadImage(file);
+async function detectLines(worker, canvas) {
 
   /*
-     Image préparée en grand format
+    On utilise une reconnaissance globale
+    uniquement pour connaître les positions
+    verticales des lignes.
+
+    Les chiffres eux-mêmes ne sont PAS
+    récupérés avec cette reconnaissance.
   */
 
-  const canvas = prepareCanvas(image);
-
-  /*
-     OCR global uniquement pour trouver
-     les différentes lignes.
-  */
-
-  const result = await worker.recognize(canvas);
-
-  let lines = [];
+  const result =
+    await worker.recognize(canvas);
 
   if (
     result.data &&
@@ -436,113 +459,150 @@ async function processPhoto(
     result.data.lines.length
   ) {
 
-    lines = result.data.lines;
+    return result.data.lines
+      .map(line => ({
+        y0: line.bbox.y0,
+        y1: line.bbox.y1
+      }))
+      .sort((a,b) => a.y0 - b.y0);
 
   }
+
+  return [];
+
+}
+
+
+/* ==========================================
+   LECTURE D'UNE BANDE
+========================================== */
+
+async function readBand(worker, band) {
+
+  const result =
+    await worker.recognize(band);
+
+  return result.data.text || "";
+
+}
+
+
+/* ==========================================
+   TRAITER UNE PHOTO
+========================================== */
+
+async function processPhoto(
+  worker,
+  file,
+  photoIndex,
+  totalPhotos
+) {
+
+  const img =
+    await loadImage(file);
+
+  const canvas =
+    prepareImage(img);
 
 
   /*
-     Si Tesseract ne trouve pas les lignes,
-     on utilise une méthode de secours.
+    Trouver les positions des lignes.
   */
 
-  if (!lines.length) {
-
-    const textLines =
-      (result.data.text || "")
-        .split("\n")
-        .map(x => x.trim())
-        .filter(Boolean);
-
-    return {
-      numbers: [],
-      warnings: textLines.map((text, index) => ({
-        line: index + 1,
-        text: text
-      }))
-    };
-
-  }
+  const lines =
+    await detectLines(
+      worker,
+      canvas
+    );
 
 
   const numbers = [];
   const warnings = [];
 
+
+  if (!lines.length) {
+
+    return {
+      numbers,
+      warnings: [{
+        photo: photoIndex,
+        line: 0,
+        text: "Impossible de détecter les lignes."
+      }]
+    };
+
+  }
+
+
   /*
-     Les lignes sont traitées de haut en bas.
+    Chaque ligne est maintenant lue
+    séparément.
   */
 
-  lines.sort((a, b) => {
+  for (
+    let i = 0;
+    i < lines.length;
+    i++
+  ) {
 
-    return a.bbox.y0 - b.bbox.y0;
+    const line =
+      lines[i];
 
-  });
-
-
-  for (let i = 0; i < lines.length; i++) {
-
-    const line = lines[i];
 
     /*
-       Coordonnées de la ligne.
+      On ajoute une petite marge verticale
+      autour des chiffres.
     */
 
-    const x = Math.max(0, line.bbox.x0);
-    const y = Math.max(0, line.bbox.y0);
+    const margin = 8;
 
-    const width =
+    const y =
+      Math.max(
+        0,
+        line.y0 - margin
+      );
+
+    const bottom =
       Math.min(
-        canvas.width - x,
-        line.bbox.x1 - line.bbox.x0
+        canvas.height,
+        line.y1 + margin
       );
 
     const height =
-      Math.min(
-        canvas.height - y,
-        line.bbox.y1 - line.bbox.y0
-      );
+      bottom - y;
 
 
-    if (width <= 0 || height <= 0) {
+    if (height <= 0) {
       continue;
     }
 
 
     /*
-       IMPORTANT :
-       On ne prend que la partie gauche
-       de la ligne.
-
-       Le numéro 212XXXXXXXXX se trouve
-       dans la première colonne.
-
-       La partie 604XXXXXXXXXXXXX est donc
-       volontairement ignorée.
+      Préparer uniquement la colonne
+      212XXXXXXXXX
     */
 
-    const leftWidth =
-      Math.floor(width * 0.58);
-
-
-    const lineCanvas = cropCanvas(
-      canvas,
-      x,
-      y,
-      leftWidth,
-      height
-    );
+    const band =
+      prepareBand(
+        canvas,
+        y,
+        height
+      );
 
 
     /*
-       OCR de cette seule partie.
+      OCR uniquement chiffres.
     */
 
     const text =
-      await readLine(worker, lineCanvas);
+      await readBand(
+        worker,
+        band
+      );
 
 
     const number =
-      findPhoneNumber(text);
+      extractNumber(text);
 
 
     if (number) {
@@ -552,18 +612,17 @@ async function processPhoto(
     } else {
 
       /*
-         On ne met dans "À vérifier" que
-         les lignes qui contiennent réellement
-         des chiffres mais dont le numéro
-         212XXXXXXXXX n'a pas pu être identifié.
+        Seulement une véritable anomalie
+        est affichée.
       */
 
       const digits =
-        cleanOCR(text).replace(/\D/g, "");
+        text.replace(/\D/g, "");
 
-      if (digits.length >= 8) {
+      if (digits.length > 4) {
 
         warnings.push({
+          photo: photoIndex,
           line: i + 1,
           text: text
         });
@@ -573,18 +632,23 @@ async function processPhoto(
     }
 
 
-    const globalProgress =
+    const progressValue =
       (
-        ((photoNumber - 1) / totalPhotos) * 100
-      ) +
+        (photoIndex - 1) /
+        totalPhotos
+      ) * 100
+      +
       (
-        (1 / totalPhotos) *
-        ((i + 1) / lines.length) *
-        100
+        (i + 1) /
+        lines.length
+      ) *
+      (
+        100 /
+        totalPhotos
       );
 
     progress.value =
-      Math.min(100, globalProgress);
+      Math.round(progressValue);
 
   }
 
@@ -597,9 +661,9 @@ async function processPhoto(
 }
 
 
-/* --------------------------------------------------
-   Traitement principal
--------------------------------------------------- */
+/* ==========================================
+   TRAITEMENT PRINCIPAL
+========================================== */
 
 processButton.addEventListener(
   "click",
@@ -608,11 +672,10 @@ processButton.addEventListener(
     if (!selectedFiles.length) {
 
       alert(
-        "Veuillez choisir une ou plusieurs photos."
+        "Choisissez d'abord une ou plusieurs photos."
       );
 
       return;
-
     }
 
 
@@ -624,27 +687,20 @@ processButton.addEventListener(
 
     duplicatesElement.innerHTML = "";
 
-    totalElement.textContent = "0";
-
-    uniqueElement.textContent = "0";
-
-    duplicateCountElement.textContent = "0";
-
-
     progress.hidden = false;
 
     progress.value = 0;
 
 
-    status.textContent =
-      "Préparation de la reconnaissance...";
+    const allNumbers = [];
+    const allWarnings = [];
 
 
     try {
 
-      /*
-         Création du moteur OCR
-      */
+      status.textContent =
+        "Préparation de l'OCR...";
+
 
       const worker =
         await Tesseract.createWorker(
@@ -658,14 +714,15 @@ processButton.addEventListener(
                 "recognizing text"
               ) {
 
-                const percent =
+                const p =
                   Math.round(
-                    (message.progress || 0) * 100
+                    (message.progress || 0) *
+                    100
                   );
 
                 status.textContent =
-                  "Reconnaissance OCR : " +
-                  percent +
+                  "Lecture : " +
+                  p +
                   "%";
 
               }
@@ -676,27 +733,23 @@ processButton.addEventListener(
 
 
       /*
-         Configuration OCR
+        On demande à Tesseract de privilégier
+        les chiffres.
       */
 
       await worker.setParameters({
 
         tessedit_char_whitelist:
-          "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+          "0123456789",
 
         preserve_interword_spaces:
-          "1"
+          "0"
 
       });
 
 
-      const allNumbers = [];
-
-      const allWarnings = [];
-
-
       /*
-         Traitement de toutes les photos
+        Traiter chaque photo.
       */
 
       for (
@@ -706,7 +759,7 @@ processButton.addEventListener(
       ) {
 
         status.textContent =
-          "Traitement de la photo " +
+          "Photo " +
           (i + 1) +
           " / " +
           selectedFiles.length;
@@ -726,15 +779,9 @@ processButton.addEventListener(
         );
 
 
-        result.warnings.forEach(w => {
-
-          allWarnings.push({
-            photo: i + 1,
-            line: w.line,
-            text: w.text
-          });
-
-        });
+        allWarnings.push(
+          ...result.warnings
+        );
 
       }
 
@@ -742,11 +789,12 @@ processButton.addEventListener(
       await worker.terminate();
 
 
-      /*
-         Comptage
-      */
+      /* ==================================
+         COMPTAGE
+      ================================== */
 
-      const counts = new Map();
+      const counts =
+        new Map();
 
 
       allNumbers.forEach(number => {
@@ -762,23 +810,25 @@ processButton.addEventListener(
       const duplicates = [];
 
 
-      counts.forEach((count, number) => {
+      counts.forEach(
+        (count, number) => {
 
-        if (count > 1) {
+          if (count > 1) {
 
-          duplicates.push({
-            number: number,
-            count: count
-          });
+            duplicates.push({
+              number,
+              count
+            });
+
+          }
 
         }
+      );
 
-      });
 
-
-      /*
-         Affichage
-      */
+      /* ==================================
+         AFFICHAGE
+      ================================== */
 
       totalElement.textContent =
         allNumbers.length;
@@ -793,54 +843,58 @@ processButton.addEventListener(
       if (!duplicates.length) {
 
         duplicatesElement.innerHTML =
-          "<span>✅ Aucun doublon trouvé.</span>";
+          "✅ Aucun doublon trouvé.";
 
       } else {
 
-        duplicates.sort(
-          (a, b) => b.count - a.count
-        );
+        duplicates
+          .sort(
+            (a,b) =>
+              b.count - a.count
+          )
+          .forEach(item => {
 
+            const div =
+              document.createElement("div");
 
-        duplicates.forEach(item => {
+            div.className =
+              "number duplicate";
 
-          const div =
-            document.createElement("div");
+            div.textContent =
+              item.number +
+              " → " +
+              item.count +
+              " fois";
 
-          div.className =
-            "number duplicate";
+            duplicatesElement.appendChild(
+              div
+            );
 
-          div.textContent =
-            item.number +
-            "  →  " +
-            item.count +
-            " fois";
-
-          duplicatesElement.appendChild(div);
-
-        });
+          });
 
       }
 
 
-      /*
-         Affichage des lignes réellement
-         impossibles à lire
-      */
+      /* ==================================
+         AVERTISSEMENTS
+      ================================== */
 
       if (allWarnings.length) {
 
         const title =
           document.createElement("div");
 
-        title.className = "warning";
+        title.className =
+          "warning";
 
         title.innerHTML =
-          "<strong>⚠️ À vérifier :</strong><br>" +
+          "<strong>⚠️ Numéros non reconnus :</strong><br>" +
           allWarnings.length +
-          " ligne(s) n'ont pas pu être reconnue(s) comme un numéro 212XXXXXXXXX.";
+          " ligne(s).";
 
-        warningsElement.appendChild(title);
+        warningsElement.appendChild(
+          title
+        );
 
 
         allWarnings.forEach(item => {
@@ -854,12 +908,17 @@ processButton.addEventListener(
           div.innerHTML =
             "Photo " +
             item.photo +
-            ", ligne " +
+            " — ligne " +
             item.line +
-            "<br>OCR : " +
-            (item.text || "(vide)");
+            "<br>Lecture OCR : " +
+            (
+              item.text ||
+              "(aucun chiffre)"
+            );
 
-          warningsElement.appendChild(div);
+          warningsElement.appendChild(
+            div
+          );
 
         });
 
@@ -879,10 +938,10 @@ processButton.addEventListener(
       console.error(error);
 
       status.textContent =
-        "❌ Une erreur est survenue.";
+        "❌ Erreur pendant la reconnaissance.";
 
       alert(
-        "Erreur pendant la reconnaissance OCR."
+        "Une erreur est survenue pendant la lecture."
       );
 
     }
