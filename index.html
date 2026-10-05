@@ -1,653 +1,896 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Vérification des numéros</title>
+  <title>Vérification des numéros</title>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-<style>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #222;
+    }
 
-body {
-  font-family: Arial, sans-serif;
-  background: #f4f4f4;
-  margin: 0;
-  padding: 15px;
-}
+    h1 {
+      text-align: center;
+      font-size: 24px;
+    }
 
-.container {
-  max-width: 700px;
-  margin: auto;
-  background: white;
-  padding: 20px;
-  border-radius: 15px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
-}
+    .box {
+      background: white;
+      padding: 18px;
+      border-radius: 14px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
 
-h1 {
-  text-align: center;
-  font-size: 24px;
-}
+    button,
+    label.button {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 14px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 10px;
+      background: #007aff;
+      color: white;
+      font-size: 17px;
+      text-align: center;
+      cursor: pointer;
+    }
 
-button {
-  width: 100%;
-  padding: 15px;
-  margin-top: 10px;
-  border: none;
-  border-radius: 10px;
-  font-size: 17px;
-  font-weight: bold;
-}
+    input[type="file"] {
+      display: none;
+    }
 
-.library {
-  background: #198754;
-  color: white;
-}
+    #status {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
 
-.camera {
-  background: #0d6efd;
-  color: white;
-}
+    .result {
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f0f0f0;
+    }
 
-.check {
-  background: #6f42c1;
-  color: white;
-}
+    .duplicate {
+      color: #c00;
+      font-weight: bold;
+    }
 
-.clear {
-  background: #dc3545;
-  color: white;
-}
+    .warning {
+      background: #fff3cd;
+      color: #856404;
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
 
-input[type="file"] {
-  display: none;
-}
+    .number {
+      font-family: monospace;
+      font-size: 17px;
+      margin: 4px 0;
+    }
 
-.info {
-  margin-top: 15px;
-  padding: 12px;
-  background: #eeeeee;
-  border-radius: 10px;
-}
+    .small {
+      font-size: 13px;
+      color: #666;
+    }
 
-.result {
-  margin-top: 20px;
-}
-
-.number {
-  font-family: monospace;
-  font-size: 20px;
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
-}
-
-.duplicate {
-  background: #ffe0e0;
-  color: #b00020;
-  padding: 12px;
-  margin-top: 8px;
-  border-radius: 8px;
-  font-size: 19px;
-  font-weight: bold;
-}
-
-.warning {
-  background: #fff3cd;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 8px;
-}
-
-.success {
-  background: #d1e7dd;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 8px;
-}
-
-.progress {
-  margin-top: 15px;
-  font-size: 15px;
-  color: #555;
-}
-
-</style>
+    progress {
+      width: 100%;
+      height: 20px;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="container">
+  <h1>📱 Vérification des numéros</h1>
 
-<h1>📱 Vérification des doublons</h1>
+  <div class="box">
 
-<div class="info">
-  <strong>Format recherché :</strong><br>
-  212xxxxxxxxx~604xxxxxxxxxxxxx
-  <br><br>
-  L'application prend uniquement les <strong>12 chiffres avant ~</strong>.
-</div>
+    <label class="button" for="libraryInput">
+      📷 Choisir des photos
+    </label>
 
-<!-- BIBLIOTHÈQUE -->
+    <input
+      id="libraryInput"
+      type="file"
+      accept="image/*"
+      multiple
+    >
 
-<input
-  id="libraryInput"
-  type="file"
-  accept="image/*"
-  multiple
->
+    <label class="button" for="cameraInput">
+      📸 Prendre une photo
+    </label>
 
-<button
-  class="library"
-  type="button"
-  onclick="document.getElementById('libraryInput').click()"
->
-🖼️ Choisir dans la bibliothèque
-</button>
+    <input
+      id="cameraInput"
+      type="file"
+      accept="image/*"
+      capture="environment"
+    >
 
+    <button id="processButton">
+      🔍 Vérifier les numéros
+    </button>
 
-<!-- CAMÉRA -->
+    <div id="status"></div>
 
-<input
-  id="cameraInput"
-  type="file"
-  accept="image/*"
-  capture="environment"
->
+    <progress id="progress" value="0" max="100" hidden></progress>
 
-<button
-  class="camera"
-  type="button"
-  onclick="document.getElementById('cameraInput').click()"
->
-📷 Prendre une photo
-</button>
+  </div>
 
+  <div class="box" id="results" hidden>
 
-<button
-  class="check"
-  type="button"
-  onclick="startOCR()"
->
-🔍 Lire les numéros
-</button>
+    <div class="result">
+      <strong>Total reconnu :</strong>
+      <span id="total">0</span>
+    </div>
 
+    <div class="result">
+      <strong>Numéros différents :</strong>
+      <span id="unique">0</span>
+    </div>
 
-<button
-  class="clear"
-  type="button"
-  onclick="clearAll()"
->
-🗑️ Effacer
-</button>
+    <div class="result">
+      <strong>Doublons :</strong>
+      <span id="duplicateCount">0</span>
+    </div>
 
+    <div class="result">
+      <strong>Liste des doublons :</strong>
+      <div id="duplicates"></div>
+    </div>
 
-<div id="fileInfo" class="info"></div>
+    <div id="warnings"></div>
 
-<div id="progress" class="progress"></div>
-
-<div id="result" class="result"></div>
-
-</div>
+  </div>
 
 
 <script>
 
+const libraryInput = document.getElementById("libraryInput");
+const cameraInput = document.getElementById("cameraInput");
+const processButton = document.getElementById("processButton");
+
+const status = document.getElementById("status");
+const progress = document.getElementById("progress");
+
+const results = document.getElementById("results");
+const totalElement = document.getElementById("total");
+const uniqueElement = document.getElementById("unique");
+const duplicateCountElement = document.getElementById("duplicateCount");
+const duplicatesElement = document.getElementById("duplicates");
+const warningsElement = document.getElementById("warnings");
+
+
 let selectedFiles = [];
 
 
-/* =========================
-   AJOUT DES PHOTOS
-========================= */
+/* --------------------------------------------------
+   Sélection des photos
+-------------------------------------------------- */
 
-document.getElementById("libraryInput").addEventListener("change", function(e) {
+libraryInput.addEventListener("change", function() {
 
-  const files = Array.from(e.target.files);
+  selectedFiles = Array.from(this.files);
 
-  selectedFiles = selectedFiles.concat(files);
-
-  showFileInfo();
-
-});
-
-
-document.getElementById("cameraInput").addEventListener("change", function(e) {
-
-  const files = Array.from(e.target.files);
-
-  selectedFiles = selectedFiles.concat(files);
-
-  showFileInfo();
-
-});
-
-
-function showFileInfo() {
-
-  const info = document.getElementById("fileInfo");
-
-  if (selectedFiles.length === 0) {
-
-    info.innerHTML = "";
-
-    return;
-
-  }
-
-  info.innerHTML =
-    "📷 Photos sélectionnées : <strong>" +
+  status.textContent =
     selectedFiles.length +
-    "</strong>";
+    " photo(s) sélectionnée(s).";
+
+});
+
+
+cameraInput.addEventListener("change", function() {
+
+  selectedFiles = Array.from(this.files);
+
+  status.textContent =
+    selectedFiles.length +
+    " photo(s) sélectionnée(s).";
+
+});
+
+
+/* --------------------------------------------------
+   Charger une image
+-------------------------------------------------- */
+
+function loadImage(file) {
+
+  return new Promise((resolve, reject) => {
+
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+
+    image.onerror = reject;
+
+    image.src = URL.createObjectURL(file);
+
+  });
 
 }
 
 
-/* =========================
-   PRÉPARATION DE L'IMAGE
-========================= */
+/* --------------------------------------------------
+   Préparation d'une image
+-------------------------------------------------- */
 
-function preprocessImage(file) {
+function prepareCanvas(image) {
 
-  return new Promise((resolve) => {
+  const scale = 3;
 
-    const img = new Image();
+  const canvas = document.createElement("canvas");
 
-    img.onload = function() {
+  canvas.width = image.width * scale;
+  canvas.height = image.height * scale;
 
-      /*
-        On agrandit l'image.
-      */
+  const ctx = canvas.getContext("2d");
 
-      const scale = 2.5;
+  ctx.drawImage(
+    image,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
 
-      const canvas = document.createElement("canvas");
+  const imageData =
+    ctx.getImageData(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
 
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
+  const data = imageData.data;
 
-      const ctx = canvas.getContext("2d");
+  for (let i = 0; i < data.length; i += 4) {
 
-      ctx.drawImage(
-        img,
-        0,
-        0,
-        canvas.width,
-        canvas.height
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    const gray =
+      0.299 * r +
+      0.587 * g +
+      0.114 * b;
+
+    const value = gray > 160 ? 255 : 0;
+
+    data[i] = value;
+    data[i + 1] = value;
+    data[i + 2] = value;
+
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  return canvas;
+}
+
+
+/* --------------------------------------------------
+   Extraire une zone
+-------------------------------------------------- */
+
+function cropCanvas(
+  source,
+  x,
+  y,
+  width,
+  height
+) {
+
+  const canvas = document.createElement("canvas");
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(
+    source,
+    x,
+    y,
+    width,
+    height,
+    0,
+    0,
+    width,
+    height
+  );
+
+  return canvas;
+}
+
+
+/* --------------------------------------------------
+   Nettoyer le résultat OCR
+-------------------------------------------------- */
+
+function cleanOCR(text) {
+
+  return text
+    .replace(/\s/g, "")
+    .replace(/O/gi, "0")
+    .replace(/[Il|]/g, "1")
+    .replace(/S/g, "5")
+    .replace(/B/g, "8")
+    .replace(/Z/g, "2");
+
+}
+
+
+/* --------------------------------------------------
+   Chercher un numéro 212XXXXXXXXX
+-------------------------------------------------- */
+
+function findPhoneNumber(text) {
+
+  const cleaned = cleanOCR(text);
+
+  /*
+     Cas idéal :
+     212 + 9 chiffres
+  */
+
+  let match = cleaned.match(/212\d{9}/);
+
+  if (match) {
+    return match[0];
+  }
+
+  /*
+     Certains OCR peuvent mettre des caractères
+     parasites entre les chiffres.
+  */
+
+  const digits = cleaned.replace(/\D/g, "");
+
+  match = digits.match(/212\d{9}/);
+
+  if (match) {
+    return match[0];
+  }
+
+  /*
+     Dernier cas :
+     si le texte commence par 212 et contient
+     suffisamment de chiffres.
+  */
+
+  if (
+    digits.length >= 12 &&
+    digits.substring(0, 3) === "212"
+  ) {
+
+    return digits.substring(0, 12);
+
+  }
+
+  return null;
+}
+
+
+/* --------------------------------------------------
+   OCR d'une ligne
+-------------------------------------------------- */
+
+async function readLine(worker, canvas) {
+
+  const result = await worker.recognize(canvas);
+
+  return result.data.text || "";
+
+}
+
+
+/* --------------------------------------------------
+   Traiter une photo
+-------------------------------------------------- */
+
+async function processPhoto(
+  worker,
+  file,
+  photoNumber,
+  totalPhotos
+) {
+
+  const image = await loadImage(file);
+
+  /*
+     Image préparée en grand format
+  */
+
+  const canvas = prepareCanvas(image);
+
+  /*
+     OCR global uniquement pour trouver
+     les différentes lignes.
+  */
+
+  const result = await worker.recognize(canvas);
+
+  let lines = [];
+
+  if (
+    result.data &&
+    result.data.lines &&
+    result.data.lines.length
+  ) {
+
+    lines = result.data.lines;
+
+  }
+
+
+  /*
+     Si Tesseract ne trouve pas les lignes,
+     on utilise une méthode de secours.
+  */
+
+  if (!lines.length) {
+
+    const textLines =
+      (result.data.text || "")
+        .split("\n")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+    return {
+      numbers: [],
+      warnings: textLines.map((text, index) => ({
+        line: index + 1,
+        text: text
+      }))
+    };
+
+  }
+
+
+  const numbers = [];
+  const warnings = [];
+
+  /*
+     Les lignes sont traitées de haut en bas.
+  */
+
+  lines.sort((a, b) => {
+
+    return a.bbox.y0 - b.bbox.y0;
+
+  });
+
+
+  for (let i = 0; i < lines.length; i++) {
+
+    const line = lines[i];
+
+    /*
+       Coordonnées de la ligne.
+    */
+
+    const x = Math.max(0, line.bbox.x0);
+    const y = Math.max(0, line.bbox.y0);
+
+    const width =
+      Math.min(
+        canvas.width - x,
+        line.bbox.x1 - line.bbox.x0
+      );
+
+    const height =
+      Math.min(
+        canvas.height - y,
+        line.bbox.y1 - line.bbox.y0
       );
 
 
+    if (width <= 0 || height <= 0) {
+      continue;
+    }
+
+
+    /*
+       IMPORTANT :
+       On ne prend que la partie gauche
+       de la ligne.
+
+       Le numéro 212XXXXXXXXX se trouve
+       dans la première colonne.
+
+       La partie 604XXXXXXXXXXXXX est donc
+       volontairement ignorée.
+    */
+
+    const leftWidth =
+      Math.floor(width * 0.58);
+
+
+    const lineCanvas = cropCanvas(
+      canvas,
+      x,
+      y,
+      leftWidth,
+      height
+    );
+
+
+    /*
+       OCR de cette seule partie.
+    */
+
+    const text =
+      await readLine(worker, lineCanvas);
+
+
+    const number =
+      findPhoneNumber(text);
+
+
+    if (number) {
+
+      numbers.push(number);
+
+    } else {
+
       /*
-        Noir et blanc + contraste.
+         On ne met dans "À vérifier" que
+         les lignes qui contiennent réellement
+         des chiffres mais dont le numéro
+         212XXXXXXXXX n'a pas pu être identifié.
       */
 
-      const imageData =
-        ctx.getImageData(
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
+      const digits =
+        cleanOCR(text).replace(/\D/g, "");
 
-      const data = imageData.data;
+      if (digits.length >= 8) {
 
-      for (let i = 0; i < data.length; i += 4) {
-
-        let r = data[i];
-        let g = data[i + 1];
-        let b = data[i + 2];
-
-        let gray =
-          0.299 * r +
-          0.587 * g +
-          0.114 * b;
-
-        /*
-          Contraste renforcé.
-        */
-
-        gray = ((gray - 128) * 1.5) + 128;
-
-        if (gray < 150) {
-          gray = 0;
-        } else {
-          gray = 255;
-        }
-
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
+        warnings.push({
+          line: i + 1,
+          text: text
+        });
 
       }
 
-      ctx.putImageData(imageData, 0, 0);
+    }
 
-      resolve(canvas.toDataURL("image/png"));
 
-    };
+    const globalProgress =
+      (
+        ((photoNumber - 1) / totalPhotos) * 100
+      ) +
+      (
+        (1 / totalPhotos) *
+        ((i + 1) / lines.length) *
+        100
+      );
 
-    img.src = URL.createObjectURL(file);
+    progress.value =
+      Math.min(100, globalProgress);
 
-  });
+  }
+
+
+  return {
+    numbers,
+    warnings
+  };
 
 }
 
 
-/* =========================
-   OCR
-========================= */
+/* --------------------------------------------------
+   Traitement principal
+-------------------------------------------------- */
 
-async function startOCR() {
+processButton.addEventListener(
+  "click",
+  async function() {
 
-  if (selectedFiles.length === 0) {
+    if (!selectedFiles.length) {
 
-    document.getElementById("result").innerHTML =
-      '<div class="warning">⚠️ Ajoute au moins une photo.</div>';
+      alert(
+        "Veuillez choisir une ou plusieurs photos."
+      );
 
-    return;
+      return;
 
-  }
-
-  document.getElementById("result").innerHTML = "";
-
-  document.getElementById("progress").innerHTML =
-    "⏳ Préparation de la reconnaissance...";
+    }
 
 
-  const worker = await Tesseract.createWorker("eng");
+    processButton.disabled = true;
 
-  await worker.setParameters({
+    results.hidden = true;
 
-    tessedit_char_whitelist:
-      "0123456789~",
+    warningsElement.innerHTML = "";
 
-    /*
-      On demande à Tesseract
-      de privilégier les lignes.
-    */
+    duplicatesElement.innerHTML = "";
 
-    preserve_interword_spaces: "1"
+    totalElement.textContent = "0";
 
-  });
+    uniqueElement.textContent = "0";
+
+    duplicateCountElement.textContent = "0";
 
 
-  let allNumbers = [];
+    progress.hidden = false;
 
-  let warnings = [];
+    progress.value = 0;
 
 
-  for (let i = 0; i < selectedFiles.length; i++) {
-
-    document.getElementById("progress").innerHTML =
-      "🔍 Lecture de la photo " +
-      (i + 1) +
-      " / " +
-      selectedFiles.length;
+    status.textContent =
+      "Préparation de la reconnaissance...";
 
 
     try {
 
-      const processed =
-        await preprocessImage(selectedFiles[i]);
+      /*
+         Création du moteur OCR
+      */
 
+      const worker =
+        await Tesseract.createWorker(
+          "eng",
+          1,
+          {
+            logger: message => {
 
-      const result =
-        await worker.recognize(processed);
+              if (
+                message.status ===
+                "recognizing text"
+              ) {
 
+                const percent =
+                  Math.round(
+                    (message.progress || 0) * 100
+                  );
 
-      const text = result.data.text;
+                status.textContent =
+                  "Reconnaissance OCR : " +
+                  percent +
+                  "%";
+
+              }
+
+            }
+          }
+        );
 
 
       /*
-        On travaille ligne par ligne.
+         Configuration OCR
       */
 
-      const lines =
-        text.split(/\r?\n/);
+      await worker.setParameters({
+
+        tessedit_char_whitelist:
+          "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+
+        preserve_interword_spaces:
+          "1"
+
+      });
 
 
-      for (let lineIndex = 0;
-           lineIndex < lines.length;
-           lineIndex++) {
+      const allNumbers = [];
 
-        let line = lines[lineIndex].trim();
-
-        if (!line) continue;
+      const allWarnings = [];
 
 
-        /*
-          Nettoyage des erreurs OCR.
-        */
+      /*
+         Traitement de toutes les photos
+      */
 
-        line = line
-          .replace(/\s/g, "")
-          .replace(/[OoQ]/g, "0")
-          .replace(/[Il|]/g, "1");
+      for (
+        let i = 0;
+        i < selectedFiles.length;
+        i++
+      ) {
 
-
-        /*
-          IMPORTANT :
-          On cherche uniquement un numéro
-          212 + 9 chiffres AVANT le ~
-        */
-
-        const match =
-          line.match(/(212\d{9})~/);
+        status.textContent =
+          "Traitement de la photo " +
+          (i + 1) +
+          " / " +
+          selectedFiles.length;
 
 
-        if (match) {
+        const result =
+          await processPhoto(
+            worker,
+            selectedFiles[i],
+            i + 1,
+            selectedFiles.length
+          );
 
-          allNumbers.push(match[1]);
 
-        } else {
+        allNumbers.push(
+          ...result.numbers
+        );
 
-          /*
-            Si la ligne contient un 212
-            mais n'a pas été reconnue correctement,
-            on la signale.
-          */
 
-          if (line.includes("212")) {
+        result.warnings.forEach(w => {
 
-            warnings.push(
-              "Photo " +
-              (i + 1) +
-              " — ligne " +
-              (lineIndex + 1) +
-              " : " +
-              line
-            );
+          allWarnings.push({
+            photo: i + 1,
+            line: w.line,
+            text: w.text
+          });
 
-          }
-
-        }
+        });
 
       }
 
+
+      await worker.terminate();
+
+
+      /*
+         Comptage
+      */
+
+      const counts = new Map();
+
+
+      allNumbers.forEach(number => {
+
+        counts.set(
+          number,
+          (counts.get(number) || 0) + 1
+        );
+
+      });
+
+
+      const duplicates = [];
+
+
+      counts.forEach((count, number) => {
+
+        if (count > 1) {
+
+          duplicates.push({
+            number: number,
+            count: count
+          });
+
+        }
+
+      });
+
+
+      /*
+         Affichage
+      */
+
+      totalElement.textContent =
+        allNumbers.length;
+
+      uniqueElement.textContent =
+        counts.size;
+
+      duplicateCountElement.textContent =
+        duplicates.length;
+
+
+      if (!duplicates.length) {
+
+        duplicatesElement.innerHTML =
+          "<span>✅ Aucun doublon trouvé.</span>";
+
+      } else {
+
+        duplicates.sort(
+          (a, b) => b.count - a.count
+        );
+
+
+        duplicates.forEach(item => {
+
+          const div =
+            document.createElement("div");
+
+          div.className =
+            "number duplicate";
+
+          div.textContent =
+            item.number +
+            "  →  " +
+            item.count +
+            " fois";
+
+          duplicatesElement.appendChild(div);
+
+        });
+
+      }
+
+
+      /*
+         Affichage des lignes réellement
+         impossibles à lire
+      */
+
+      if (allWarnings.length) {
+
+        const title =
+          document.createElement("div");
+
+        title.className = "warning";
+
+        title.innerHTML =
+          "<strong>⚠️ À vérifier :</strong><br>" +
+          allWarnings.length +
+          " ligne(s) n'ont pas pu être reconnue(s) comme un numéro 212XXXXXXXXX.";
+
+        warningsElement.appendChild(title);
+
+
+        allWarnings.forEach(item => {
+
+          const div =
+            document.createElement("div");
+
+          div.className =
+            "warning";
+
+          div.innerHTML =
+            "Photo " +
+            item.photo +
+            ", ligne " +
+            item.line +
+            "<br>OCR : " +
+            (item.text || "(vide)");
+
+          warningsElement.appendChild(div);
+
+        });
+
+      }
+
+
+      results.hidden = false;
+
+      progress.value = 100;
+
+      status.textContent =
+        "✅ Vérification terminée.";
+
+
     } catch (error) {
 
-      warnings.push(
-        "Impossible de lire la photo " +
-        (i + 1)
+      console.error(error);
+
+      status.textContent =
+        "❌ Une erreur est survenue.";
+
+      alert(
+        "Erreur pendant la reconnaissance OCR."
       );
 
     }
 
-  }
 
-
-  await worker.terminate();
-
-
-  /*
-    COMPTAGE
-  */
-
-  const counts = {};
-
-  allNumbers.forEach(number => {
-
-    counts[number] =
-      (counts[number] || 0) + 1;
+    processButton.disabled = false;
 
   });
-
-
-  const uniqueNumbers =
-    Object.keys(counts);
-
-
-  const duplicates =
-    uniqueNumbers.filter(
-      number => counts[number] > 1
-    );
-
-
-  displayResults(
-    allNumbers,
-    uniqueNumbers,
-    duplicates,
-    counts,
-    warnings
-  );
-
-
-  document.getElementById("progress").innerHTML =
-    "✅ Lecture terminée.";
-
-}
-
-
-/* =========================
-   AFFICHAGE DES RÉSULTATS
-========================= */
-
-function displayResults(
-  allNumbers,
-  uniqueNumbers,
-  duplicates,
-  counts,
-  warnings
-) {
-
-  let html = "";
-
-
-  html += `
-    <div class="success">
-      📱 <strong>${allNumbers.length}</strong>
-      numéros reconnus
-      <br>
-      📋 <strong>${uniqueNumbers.length}</strong>
-      numéros différents
-      <br>
-      🔴 <strong>${duplicates.length}</strong>
-      numéros en double
-    </div>
-  `;
-
-
-  /*
-    DOUBLONS
-  */
-
-  if (duplicates.length > 0) {
-
-    html += `
-      <h2>🔴 Doublons</h2>
-    `;
-
-
-    duplicates.forEach(number => {
-
-      html += `
-        <div class="duplicate">
-          ${number}
-          → ${counts[number]} fois
-        </div>
-      `;
-
-    });
-
-  } else {
-
-    html += `
-      <div class="success">
-        ✅ Aucun doublon trouvé.
-      </div>
-    `;
-
-  }
-
-
-  /*
-    TOUS LES NUMÉROS
-  */
-
-  html += `
-    <h2>📋 Numéros reconnus</h2>
-  `;
-
-
-  uniqueNumbers.forEach(number => {
-
-    html += `
-      <div class="number">
-        ${number}
-      </div>
-    `;
-
-  });
-
-
-  /*
-    LIGNES À VÉRIFIER
-  */
-
-  if (warnings.length > 0) {
-
-    html += `
-      <h2>⚠️ À vérifier</h2>
-    `;
-
-
-    warnings.forEach(warning => {
-
-      html += `
-        <div class="warning">
-          ${warning}
-        </div>
-      `;
-
-    });
-
-  }
-
-
-  document.getElementById("result").innerHTML = html;
-
-}
-
-
-/* =========================
-   EFFACER
-========================= */
-
-function clearAll() {
-
-  selectedFiles = [];
-
-  document.getElementById("libraryInput").value = "";
-
-  document.getElementById("cameraInput").value = "";
-
-  document.getElementById("fileInfo").innerHTML = "";
-
-  document.getElementById("progress").innerHTML = "";
-
-  document.getElementById("result").innerHTML = "";
-
-}
 
 </script>
 
