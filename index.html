@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Numéros doublons</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -25,33 +26,6 @@ h1 {
     text-align: center;
 }
 
-button, input {
-    font-size: 17px;
-}
-
-#photos {
-    width: 100%;
-    padding: 12px;
-    background: white;
-    border-radius: 10px;
-    margin-bottom: 15px;
-}
-
-button {
-    width: 100%;
-    padding: 14px;
-    border: 0;
-    border-radius: 10px;
-    background: #007aff;
-    color: white;
-    font-weight: bold;
-    margin: 5px 0;
-}
-
-button:disabled {
-    background: #aaa;
-}
-
 .card {
     background: white;
     padding: 15px;
@@ -59,25 +33,70 @@ button:disabled {
     margin-top: 15px;
 }
 
+button {
+    width: 100%;
+    padding: 15px;
+    border: 0;
+    border-radius: 10px;
+    background: #007aff;
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+    margin: 6px 0;
+}
+
+button:disabled {
+    background: #aaa;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.fileButton {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 15px;
+    border-radius: 10px;
+    background: #34a853;
+    color: white;
+    text-align: center;
+    font-size: 17px;
+    font-weight: bold;
+    margin: 6px 0;
+    cursor: pointer;
+}
+
+.cameraButton {
+    background: #ff9500;
+}
+
 .number {
     font-family: monospace;
     font-size: 17px;
-    padding: 5px 0;
+    padding: 6px 0;
 }
 
 .duplicate {
-    color: #d00;
+    color: #d00000;
     font-weight: bold;
 }
 
 .warning {
-    color: #b36b00;
+    color: #a05a00;
+    padding: 5px 0;
 }
 
 #progress {
     margin-top: 15px;
-    font-weight: bold;
     text-align: center;
+    font-weight: bold;
+}
+
+#selectedPhotos {
+    margin-top: 10px;
+    font-size: 14px;
 }
 </style>
 </head>
@@ -89,42 +108,128 @@ button:disabled {
 <h1>📱 Numéros doublons</h1>
 
 <div class="card">
-    <p>
-        Sélectionne une ou plusieurs photos.
-        Tu peux prendre directement les photos avec l'appareil photo.
-    </p>
 
-    <input
-        id="photos"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        multiple
-    >
+    <h3>1️⃣ Ajouter les photos</h3>
 
-    <button id="start">🔍 Lire les numéros</button>
+    <!-- Bibliothèque -->
+    <label class="fileButton">
+        🖼️ Choisir dans la bibliothèque
+        <input
+            id="libraryInput"
+            type="file"
+            accept="image/*"
+            multiple
+        >
+    </label>
+
+    <!-- Appareil photo -->
+    <label class="fileButton cameraButton">
+        📷 Prendre une photo
+        <input
+            id="cameraInput"
+            type="file"
+            accept="image/*"
+            capture="environment"
+        >
+    </label>
+
+    <div id="selectedPhotos">
+        Aucune photo sélectionnée.
+    </div>
+
+    <button id="start">
+        🔍 Lire les numéros
+    </button>
 
     <div id="progress"></div>
+
 </div>
 
 <div id="summary"></div>
+
 <div id="duplicates"></div>
+
 <div id="verify"></div>
 
 </div>
 
+
 <script>
 
-const startButton = document.getElementById("start");
-const photosInput = document.getElementById("photos");
-const progress = document.getElementById("progress");
+const libraryInput =
+    document.getElementById("libraryInput");
 
-let allNumbers = [];
-let allWarnings = [];
+const cameraInput =
+    document.getElementById("cameraInput");
+
+const startButton =
+    document.getElementById("start");
+
+const progress =
+    document.getElementById("progress");
+
+const selectedPhotos =
+    document.getElementById("selectedPhotos");
+
+
+// Toutes les photos ajoutées
+let selectedFiles = [];
 
 
 // ---------------------------------------------------------
-// Chargement de l'image
+// Bibliothèque
+// ---------------------------------------------------------
+
+libraryInput.addEventListener("change", function() {
+
+    const files = Array.from(this.files);
+
+    selectedFiles.push(...files);
+
+    updatePhotoList();
+
+    // Permet de sélectionner à nouveau les mêmes photos
+    this.value = "";
+});
+
+
+// ---------------------------------------------------------
+// Appareil photo
+// ---------------------------------------------------------
+
+cameraInput.addEventListener("change", function() {
+
+    const files = Array.from(this.files);
+
+    selectedFiles.push(...files);
+
+    updatePhotoList();
+
+    this.value = "";
+});
+
+
+// ---------------------------------------------------------
+// Affichage des photos sélectionnées
+// ---------------------------------------------------------
+
+function updatePhotoList() {
+
+    if (selectedFiles.length === 0) {
+
+        selectedPhotos.textContent =
+            "Aucune photo sélectionnée.";
+
+        return;
+    }
+
+    selectedPhotos.innerHTML =
+        `📸 ${selectedFiles.length} photo(s) sélectionnée(s).`;
+}
+
+
+// ---------------------------------------------------------
+// Chargement image
 // ---------------------------------------------------------
 
 function loadImage(file) {
@@ -143,12 +248,13 @@ function loadImage(file) {
 
 
 // ---------------------------------------------------------
-// Amélioration de l'image
+// Préparation image
 // ---------------------------------------------------------
 
 function preprocessImage(img) {
 
-    const canvas = document.createElement("canvas");
+    const canvas =
+        document.createElement("canvas");
 
     const maxWidth = 2500;
 
@@ -156,73 +262,101 @@ function preprocessImage(img) {
     let height = img.naturalHeight;
 
     if (width > maxWidth) {
-        const ratio = maxWidth / width;
+
+        const ratio =
+            maxWidth / width;
+
         width = maxWidth;
-        height = Math.round(height * ratio);
+
+        height =
+            Math.round(height * ratio);
     }
 
     canvas.width = width;
     canvas.height = height;
 
-    const ctx = canvas.getContext("2d");
+    const ctx =
+        canvas.getContext("2d");
 
-    ctx.drawImage(img, 0, 0, width, height);
-
-    const imageData = ctx.getImageData(
+    ctx.drawImage(
+        img,
         0,
         0,
         width,
         height
     );
 
-    const data = imageData.data;
+    const imageData =
+        ctx.getImageData(
+            0,
+            0,
+            width,
+            height
+        );
 
-    for (let i = 0; i < data.length; i += 4) {
+    const data =
+        imageData.data;
+
+    for (
+        let i = 0;
+        i < data.length;
+        i += 4
+    ) {
 
         let r = data[i];
         let g = data[i + 1];
         let b = data[i + 2];
 
-        // niveaux de gris
         let gray =
             0.299 * r +
             0.587 * g +
             0.114 * b;
 
-        // contraste
-        gray = (gray - 128) * 1.5 + 128;
+        gray =
+            (gray - 128) * 1.5 + 128;
 
-        gray = Math.max(0, Math.min(255, gray));
+        gray =
+            Math.max(
+                0,
+                Math.min(255, gray)
+            );
 
         data[i] = gray;
         data[i + 1] = gray;
         data[i + 2] = gray;
     }
 
-    ctx.putImageData(imageData, 0, 0);
+    ctx.putImageData(
+        imageData,
+        0,
+        0
+    );
 
     return canvas;
 }
 
 
 // ---------------------------------------------------------
-// Trouver un numéro 212xxxxxxxxx
+// Recherche numéro 212xxxxxxxxx
 // ---------------------------------------------------------
 
 function extractPhone(text) {
 
     if (!text) return null;
 
-    // Nettoyage des espaces et caractères parasites
     let s = text
         .replace(/\s/g, "")
         .replace(/[|Il]/g, "1")
         .replace(/[OoQ]/g, "0");
 
-    // Recherche exacte : 212 + 9 chiffres
-    const matches = s.match(/212\d{9}/g);
+    const matches =
+        s.match(/212\d{9}/g);
 
-    if (matches && matches.length > 0) {
+    if (
+        matches &&
+        matches.length > 0
+    ) {
+
         return matches[0];
     }
 
@@ -231,61 +365,88 @@ function extractPhone(text) {
 
 
 // ---------------------------------------------------------
-// OCR de la page pour trouver les lignes
+// Détection des lignes
 // ---------------------------------------------------------
 
-async function detectLines(worker, canvas) {
+async function detectLines(
+    worker,
+    canvas
+) {
 
-    const result = await worker.recognize(canvas);
+    const result =
+        await worker.recognize(canvas);
 
-    const lines = result.data.lines || [];
-
-    return {
-        lines: lines,
-        imageWidth: canvas.width,
-        imageHeight: canvas.height
-    };
+    return result.data.lines || [];
 }
 
 
 // ---------------------------------------------------------
-// OCR d'une ligne
+// Lecture d'une ligne
 // ---------------------------------------------------------
 
-async function readLine(worker, canvas, line) {
+async function readLine(
+    worker,
+    canvas,
+    line
+) {
 
-    const x = Math.max(0, Math.floor(line.bbox.x0));
-    const y = Math.max(0, Math.floor(line.bbox.y0));
+    const x =
+        Math.max(
+            0,
+            Math.floor(line.bbox.x0)
+        );
+
+    const y =
+        Math.max(
+            0,
+            Math.floor(line.bbox.y0)
+        );
 
     const width =
         Math.min(
             canvas.width - x,
-            Math.ceil(line.bbox.x1 - line.bbox.x0)
+            Math.ceil(
+                line.bbox.x1 -
+                line.bbox.x0
+            )
         );
 
     const height =
         Math.min(
             canvas.height - y,
-            Math.ceil(line.bbox.y1 - line.bbox.y0)
+            Math.ceil(
+                line.bbox.y1 -
+                line.bbox.y0
+            )
         );
 
-    if (width <= 0 || height <= 0) {
+    if (
+        width <= 0 ||
+        height <= 0
+    ) {
+
         return null;
     }
 
-    // On prend principalement la partie gauche,
-    // car le numéro 212... est dans la première colonne.
-    const cropWidth = Math.min(
-        width,
-        Math.floor(canvas.width * 0.55)
-    );
 
-    const crop = document.createElement("canvas");
+    // Première colonne uniquement
+    const cropWidth =
+        Math.min(
+            width,
+            Math.floor(
+                canvas.width * 0.55
+            )
+        );
+
+
+    const crop =
+        document.createElement("canvas");
 
     crop.width = cropWidth;
     crop.height = height;
 
-    const ctx = crop.getContext("2d");
+    const ctx =
+        crop.getContext("2d");
 
     ctx.drawImage(
         canvas,
@@ -299,149 +460,242 @@ async function readLine(worker, canvas, line) {
         height
     );
 
-    const result = await worker.recognize(crop);
+
+    const result =
+        await worker.recognize(crop);
 
     return result.data.text || "";
 }
 
 
 // ---------------------------------------------------------
-// Programme principal
+// Analyse
 // ---------------------------------------------------------
 
-startButton.addEventListener("click", async () => {
+startButton.addEventListener(
+    "click",
+    async function() {
 
-    const files = Array.from(photosInput.files);
+        if (
+            selectedFiles.length === 0
+        ) {
 
-    if (files.length === 0) {
-        alert("Sélectionne au moins une photo.");
-        return;
-    }
+            alert(
+                "Ajoute au moins une photo."
+            );
 
-    startButton.disabled = true;
-
-    allNumbers = [];
-    allWarnings = [];
-
-    progress.textContent =
-        "⏳ Préparation de l'OCR...";
-
-    const worker = await Tesseract.createWorker("eng");
-
-    await worker.setParameters({
-        tessedit_char_whitelist:
-            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
-    });
-
-    let totalLines = 0;
-
-    try {
-
-        for (let photoIndex = 0; photoIndex < files.length; photoIndex++) {
-
-            const file = files[photoIndex];
-
-            progress.textContent =
-                `📷 Photo ${photoIndex + 1}/${files.length} : préparation...`;
-
-            const img = await loadImage(file);
-
-            const canvas = preprocessImage(img);
-
-            progress.textContent =
-                `🔎 Photo ${photoIndex + 1}/${files.length} : détection des lignes...`;
-
-            const page = await detectLines(worker, canvas);
-
-            const lines = page.lines;
-
-            totalLines += lines.length;
-
-            // Si aucune ligne n'est détectée
-            if (lines.length === 0) {
-
-                allWarnings.push(
-                    `Photo ${photoIndex + 1} : aucune ligne détectée`
-                );
-
-                continue;
-            }
-
-
-            // Lecture ligne par ligne
-            for (let i = 0; i < lines.length; i++) {
-
-                progress.textContent =
-                    `📖 Photo ${photoIndex + 1}/${files.length} — ` +
-                    `ligne ${i + 1}/${lines.length}`;
-
-                const text =
-                    await readLine(
-                        worker,
-                        canvas,
-                        lines[i]
-                    );
-
-                const phone = extractPhone(text);
-
-                if (phone) {
-
-                    allNumbers.push({
-                        number: phone,
-                        photo: photoIndex + 1,
-                        line: i + 1
-                    });
-
-                } else {
-
-                    allWarnings.push({
-                        photo: photoIndex + 1,
-                        line: i + 1,
-                        text: text || "(aucun texte reconnu)"
-                    });
-                }
-            }
+            return;
         }
 
-    } catch (error) {
 
-        console.error(error);
+        startButton.disabled = true;
 
-        alert(
-            "Une erreur s'est produite pendant la lecture."
+
+        let allNumbers = [];
+        let allWarnings = [];
+
+        let totalLines = 0;
+
+
+        progress.textContent =
+            "⏳ Préparation de l'OCR...";
+
+
+        const worker =
+            await Tesseract.createWorker(
+                "eng"
+            );
+
+
+        await worker.setParameters({
+
+            tessedit_char_whitelist:
+                "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-|"
+        });
+
+
+        try {
+
+            for (
+                let photoIndex = 0;
+                photoIndex < selectedFiles.length;
+                photoIndex++
+            ) {
+
+                const file =
+                    selectedFiles[photoIndex];
+
+
+                progress.textContent =
+                    `📷 Photo ${
+                        photoIndex + 1
+                    }/${
+                        selectedFiles.length
+                    } : préparation...`;
+
+
+                const img =
+                    await loadImage(file);
+
+
+                const canvas =
+                    preprocessImage(img);
+
+
+                progress.textContent =
+                    `🔎 Photo ${
+                        photoIndex + 1
+                    }/${
+                        selectedFiles.length
+                    } : recherche des lignes...`;
+
+
+                const lines =
+                    await detectLines(
+                        worker,
+                        canvas
+                    );
+
+
+                totalLines +=
+                    lines.length;
+
+
+                if (
+                    lines.length === 0
+                ) {
+
+                    allWarnings.push(
+                        `Photo ${
+                            photoIndex + 1
+                        } : aucune ligne détectée`
+                    );
+
+                    continue;
+                }
+
+
+                for (
+                    let i = 0;
+                    i < lines.length;
+                    i++
+                ) {
+
+                    progress.textContent =
+                        `📖 Photo ${
+                            photoIndex + 1
+                        }/${
+                            selectedFiles.length
+                        } — ligne ${
+                            i + 1
+                        }/${
+                            lines.length
+                        }`;
+
+
+                    const text =
+                        await readLine(
+                            worker,
+                            canvas,
+                            lines[i]
+                        );
+
+
+                    const phone =
+                        extractPhone(text);
+
+
+                    if (phone) {
+
+                        allNumbers.push({
+
+                            number: phone,
+
+                            photo:
+                                photoIndex + 1,
+
+                            line:
+                                i + 1
+                        });
+
+                    } else {
+
+                        allWarnings.push({
+
+                            photo:
+                                photoIndex + 1,
+
+                            line:
+                                i + 1,
+
+                            text:
+                                text ||
+                                "(aucun texte reconnu)"
+                        });
+                    }
+                }
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                "Une erreur est survenue pendant la lecture."
+            );
+
+        } finally {
+
+            await worker.terminate();
+
+            progress.textContent =
+                "✅ Analyse terminée.";
+
+            displayResults(
+                totalLines,
+                allNumbers,
+                allWarnings
+            );
+
+            startButton.disabled = false;
+        }
+    }
+);
+
+
+// ---------------------------------------------------------
+// Résultats
+// ---------------------------------------------------------
+
+function displayResults(
+    totalLines,
+    allNumbers,
+    allWarnings
+) {
+
+    const summary =
+        document.getElementById(
+            "summary"
         );
 
-    } finally {
+    const duplicatesDiv =
+        document.getElementById(
+            "duplicates"
+        );
 
-        await worker.terminate();
-
-        progress.textContent = "✅ Analyse terminée.";
-
-        displayResults(totalLines);
-
-        startButton.disabled = false;
-    }
-
-});
+    const verifyDiv =
+        document.getElementById(
+            "verify"
+        );
 
 
-// ---------------------------------------------------------
-// Affichage des résultats
-// ---------------------------------------------------------
-
-function displayResults(totalLines) {
-
-    const summary = document.getElementById("summary");
-    const duplicatesDiv = document.getElementById("duplicates");
-    const verifyDiv = document.getElementById("verify");
-
-
-    // Comptage
     const counts = {};
+
 
     allNumbers.forEach(item => {
 
         if (!counts[item.number]) {
+
             counts[item.number] = [];
         }
 
@@ -451,13 +705,22 @@ function displayResults(totalLines) {
 
     const duplicates =
         Object.entries(counts)
-        .filter(([number, items]) => items.length > 1);
+        .filter(
+            ([number, items]) =>
+                items.length > 1
+        );
 
 
-    // Résumé
     summary.innerHTML = `
+
         <div class="card">
+
             <h2>📊 Résultat</h2>
+
+            <p>
+                <b>Photos :</b>
+                ${selectedFiles.length}
+            </p>
 
             <p>
                 <b>Lignes détectées :</b>
@@ -483,64 +746,104 @@ function displayResults(totalLines) {
                 <b>Numéros en double :</b>
                 ${duplicates.length}
             </p>
+
         </div>
     `;
 
 
     // Doublons
-    if (duplicates.length > 0) {
+
+    if (
+        duplicates.length > 0
+    ) {
 
         let html = `
+
             <div class="card">
-                <h2>🔴 Numéros qui se répètent</h2>
+
+                <h2>
+                    🔴 Numéros qui se répètent
+                </h2>
         `;
 
-        duplicates.forEach(([number, items]) => {
 
-            html += `
-                <div class="number duplicate">
-                    ${number}
-                    — ${items.length} fois
-                </div>
-            `;
-        });
+        duplicates.forEach(
+            ([number, items]) => {
+
+                html += `
+
+                    <div class="number duplicate">
+
+                        ${number}
+
+                        — ${items.length} fois
+
+                    </div>
+                `;
+            }
+        );
+
 
         html += `
-            <button onclick="copyDuplicates()">
-                📋 Copier les doublons
-            </button>
+
+                <button
+                    onclick="copyDuplicates()"
+                >
+                    📋 Copier les doublons
+                </button>
+
             </div>
         `;
 
-        duplicatesDiv.innerHTML = html;
+
+        duplicatesDiv.innerHTML =
+            html;
 
     } else {
 
         duplicatesDiv.innerHTML = `
+
             <div class="card">
-                <h2>🟢 Aucun doublon</h2>
+
+                <h2>
+                    🟢 Aucun doublon
+                </h2>
+
             </div>
         `;
     }
 
 
     // À vérifier
-    if (allWarnings.length > 0) {
+
+    if (
+        allWarnings.length > 0
+    ) {
 
         let html = `
+
             <div class="card">
-                <h2>⚠️ À vérifier</h2>
+
+                <h2>
+                    ⚠️ À vérifier
+                </h2>
+
                 <p>
-                    Ces lignes n'ont pas permis de reconnaître
-                    clairement un numéro 212...
+                    Certaines lignes n'ont pas
+                    permis de reconnaître clairement
+                    un numéro 212...
                 </p>
         `;
 
+
         allWarnings.forEach(item => {
 
-            if (typeof item === "string") {
+            if (
+                typeof item === "string"
+            ) {
 
                 html += `
+
                     <div class="warning">
                         ${item}
                     </div>
@@ -549,25 +852,42 @@ function displayResults(totalLines) {
             } else {
 
                 html += `
+
                     <div class="warning">
+
                         Photo ${item.photo},
                         ligne ${item.line}
+
                         — OCR :
-                        <b>${escapeHtml(item.text)}</b>
+
+                        <b>
+                            ${escapeHtml(item.text)}
+                        </b>
+
                     </div>
                 `;
             }
         });
 
-        html += `</div>`;
 
-        verifyDiv.innerHTML = html;
+        html += `
+            </div>
+        `;
+
+
+        verifyDiv.innerHTML =
+            html;
 
     } else {
 
         verifyDiv.innerHTML = `
+
             <div class="card">
-                <h2>✅ Toutes les lignes ont été reconnues</h2>
+
+                <h2>
+                    ✅ Toutes les lignes ont été reconnues
+                </h2>
+
             </div>
         `;
     }
@@ -582,39 +902,75 @@ function copyDuplicates() {
 
     const counts = {};
 
-    allNumbers.forEach(item => {
 
-        counts[item.number] =
-            (counts[item.number] || 0) + 1;
+    // Il faudrait récupérer les numéros
+    // depuis le résultat affiché.
+    const elements =
+        document.querySelectorAll(
+            ".duplicate"
+        );
+
+
+    const numbers = [];
+
+
+    elements.forEach(element => {
+
+        const text =
+            element.textContent.trim();
+
+        const match =
+            text.match(
+                /212\d{9}/
+            );
+
+        if (match) {
+
+            numbers.push(
+                match[0]
+            );
+        }
     });
 
-    const duplicates =
-        Object.entries(counts)
-        .filter(([number, count]) => count > 1)
-        .map(([number]) => number);
 
     navigator.clipboard.writeText(
-        duplicates.join("\n")
+        numbers.join("\n")
     );
 
+
     alert(
-        `${duplicates.length} doublon(s) copié(s).`
+        `${numbers.length} doublon(s) copié(s).`
     );
 }
 
 
 // ---------------------------------------------------------
-// Sécurité affichage texte OCR
+// Sécurité
 // ---------------------------------------------------------
 
 function escapeHtml(text) {
 
     return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 }
 
 </script>
