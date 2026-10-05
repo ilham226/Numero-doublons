@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Numéros en double</title>
+<title>Détection des numéros</title>
 
 <style>
 body {
     font-family: Arial, sans-serif;
     background: #f5f5f5;
     margin: 0;
-    padding: 20px;
+    padding: 15px;
 }
 
 .container {
@@ -20,18 +20,23 @@ body {
     background: white;
     padding: 20px;
     border-radius: 15px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0,0,0,.12);
 }
 
 h1 {
     text-align: center;
 }
 
+input {
+    width: 100%;
+    margin: 15px 0;
+}
+
 button {
     width: 100%;
     padding: 14px;
     margin-top: 10px;
-    border: none;
+    border: 0;
     border-radius: 10px;
     background: #007aff;
     color: white;
@@ -39,12 +44,7 @@ button {
 }
 
 button:disabled {
-    background: #aaa;
-}
-
-input[type="file"] {
-    width: 100%;
-    margin: 15px 0;
+    background: #999;
 }
 
 .status {
@@ -54,14 +54,16 @@ input[type="file"] {
     border-radius: 10px;
 }
 
-.result {
-    margin-top: 20px;
+.success {
+    background: #d8f3dc;
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 10px;
 }
 
 .number {
     padding: 10px;
     border-bottom: 1px solid #ddd;
-    font-size: 17px;
 }
 
 .duplicate {
@@ -69,26 +71,18 @@ input[type="file"] {
 }
 
 .warning {
-    margin-top: 15px;
-    padding: 12px;
     background: #fff3cd;
-    border-radius: 10px;
-}
-
-.success {
-    margin-top: 15px;
     padding: 12px;
-    background: #d4edda;
+    margin-top: 15px;
     border-radius: 10px;
 }
 
 pre {
     white-space: pre-wrap;
     word-break: break-word;
-    background: #f1f1f1;
-    padding: 10px;
-    border-radius: 8px;
     font-size: 12px;
+    background: #eee;
+    padding: 10px;
 }
 </style>
 </head>
@@ -100,7 +94,7 @@ pre {
 <h1>📱 Numéros en double</h1>
 
 <p>
-Sélectionne une ou plusieurs photos contenant les numéros.
+Sélectionne une ou plusieurs photos contenant tes numéros.
 </p>
 
 <input
@@ -120,180 +114,455 @@ En attente...
 
 <div id="summary"></div>
 
-<div id="result" class="result"></div>
+<div id="result"></div>
 
-<button id="copyDuplicates" style="display:none;">
+<button id="copyDuplicates" style="display:none">
 Copier les doublons
 </button>
 
-<button id="copyAll" style="display:none;">
+<button id="copyAll" style="display:none">
 Copier tous les numéros
 </button>
 
-<details style="margin-top:20px;">
-    <summary>Voir le texte reconnu par l'OCR</summary>
-    <pre id="ocrText"></pre>
+<details style="margin-top:20px">
+<summary>Voir le texte OCR</summary>
+<pre id="ocrText"></pre>
 </details>
 
 </div>
 
+
 <script type="module">
 
-import { createWorker } from
-"https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/+esm";
+import { createWorker }
+from "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/+esm";
+
 
 const photos = document.getElementById("photos");
 const startButton = document.getElementById("start");
 const status = document.getElementById("status");
 const summary = document.getElementById("summary");
 const result = document.getElementById("result");
-const copyDuplicates = document.getElementById("copyDuplicates");
-const copyAll = document.getElementById("copyAll");
 const ocrText = document.getElementById("ocrText");
+
+const copyDuplicates =
+document.getElementById("copyDuplicates");
+
+const copyAll =
+document.getElementById("copyAll");
+
 
 let numbersFound = [];
 let duplicateNumbers = [];
 
 
-// --------------------------------------------------
-// Nettoyage OCR
-// --------------------------------------------------
+// =====================================================
+// CHARGER UNE IMAGE
+// =====================================================
 
-function cleanOCR(text) {
+function loadImage(file) {
 
-    return text
-        .replace(/[Oo]/g, "0")
-        .replace(/[Il|]/g, "1")
-        .replace(/[Ss]/g, "5")
-        .replace(/[Bb]/g, "8");
+    return new Promise((resolve, reject) => {
+
+        const img = new Image();
+
+        img.onload = () => resolve(img);
+
+        img.onerror = reject;
+
+        img.src = URL.createObjectURL(file);
+
+    });
+
 }
 
 
-// --------------------------------------------------
-// Recherche des numéros marocains au format 212XXXXXXXXX
-// --------------------------------------------------
+// =====================================================
+// PRETRAITEMENT DE L'IMAGE
+// =====================================================
+
+function processImage(img, mode) {
+
+    const canvas = document.createElement("canvas");
+
+    /*
+       On agrandit l'image.
+
+       L'OCR fonctionne souvent mieux avec
+       des caractères plus grands.
+    */
+
+    const scale = 2;
+
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(
+        img,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    const imageData =
+        ctx.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+    const data = imageData.data;
+
+
+    // ---------------------------------------------
+    // Mode 1 : image améliorée
+    // ---------------------------------------------
+
+    if (mode === 1) {
+
+        for (let i = 0; i < data.length; i += 4) {
+
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+
+            let gray =
+                0.299 * r +
+                0.587 * g +
+                0.114 * b;
+
+            // contraste
+            gray =
+                ((gray - 128) * 1.7) + 128;
+
+            gray =
+                Math.max(0, Math.min(255, gray));
+
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+    }
+
+
+    // ---------------------------------------------
+    // Mode 2 : noir et blanc
+    // ---------------------------------------------
+
+    if (mode === 2) {
+
+        for (let i = 0; i < data.length; i += 4) {
+
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+
+            let gray =
+                0.299 * r +
+                0.587 * g +
+                0.114 * b;
+
+            /*
+               Seuillage.
+
+               Les chiffres deviennent noirs
+               et le fond blanc.
+            */
+
+            let value =
+                gray < 170 ? 0 : 255;
+
+            data[i] = value;
+            data[i + 1] = value;
+            data[i + 2] = value;
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+
+    return canvas;
+}
+
+
+// =====================================================
+// NETTOYAGE DU TEXTE OCR
+// =====================================================
+
+function cleanText(text) {
+
+    return text
+
+        // erreurs OCR fréquentes
+        .replace(/[Oo]/g, "0")
+        .replace(/[Il|]/g, "1")
+        .replace(/[Ss]/g, "5")
+        .replace(/[Bb]/g, "8")
+
+        // caractères inutiles
+        .replace(/[^\d\s\-+.]/g, " ");
+
+}
+
+
+// =====================================================
+// EXTRAIRE LES NUMEROS
+// =====================================================
 
 function extractNumbers(text) {
-
-    text = cleanOCR(text);
 
     let numbers = [];
 
     /*
-       Recherche principale :
+       On cherche :
 
        212 + 9 chiffres
 
        Exemple :
+
        212775832915
     */
 
-    const regex = /212[\s.\-]?[5-7](?:[\s.\-]?\d){8}/g;
 
-    const matches = text.match(regex);
+    const regex =
+        /212[\s.\-]?[5-7](?:[\s.\-]?\d){8}/g;
+
+
+    const matches =
+        text.match(regex);
+
 
     if (matches) {
 
-        for (let match of matches) {
+        for (const match of matches) {
 
-            // Garder uniquement les chiffres
-            let digits = match.replace(/\D/g, "");
+            const digits =
+                match.replace(/\D/g, "");
 
-            // On veut exactement 12 chiffres
-            if (digits.length === 12) {
 
-                // Vérification 212 + numéro marocain
-                if (
-                    digits.startsWith("212") &&
-                    /^[5-7]/.test(digits.substring(3))
-                ) {
+            if (digits.length !== 12)
+                continue;
 
-                    let local = "0" + digits.substring(3);
 
-                    if (/^0[5-7]\d{8}$/.test(local)) {
-                        numbers.push(local);
-                    }
-                }
+            if (!digits.startsWith("212"))
+                continue;
+
+
+            const local =
+                "0" + digits.substring(3);
+
+
+            if (/^0[5-7]\d{8}$/.test(local)) {
+
+                numbers.push(local);
+
             }
+
         }
+
     }
 
 
     /*
-       Deuxième méthode :
+       Deuxième recherche.
 
-       Certains OCR collent tout le texte.
+       Utile lorsque l'OCR colle les caractères :
 
-       Exemple :
-       212784196092604000131805979
+       212780328106604000...
 
-       On récupère quand même :
-       212784196092
+       On récupère seulement :
+
+       212780328106
     */
 
-    const continuousRegex = /212[5-7]\d{8}/g;
+    const regex2 =
+        /212[5-7]\d{8}/g;
 
-    const continuousMatches = text.match(continuousRegex);
 
-    if (continuousMatches) {
+    const matches2 =
+        text.match(regex2);
 
-        for (let match of continuousMatches) {
 
-            let local = "0" + match.substring(3);
+    if (matches2) {
+
+        for (const match of matches2) {
+
+            const local =
+                "0" + match.substring(3);
+
 
             if (/^0[5-7]\d{8}$/.test(local)) {
+
                 numbers.push(local);
+
             }
+
         }
+
     }
 
 
-    // Supprimer les doublons créés par les deux méthodes
-    return [...new Set(numbers)];
+    return numbers;
+
 }
 
 
-// --------------------------------------------------
-// Affichage
-// --------------------------------------------------
+// =====================================================
+// SUPPRIMER LES DOUBLONS ARTIFICIELS
+// =====================================================
+
+function unique(numbers) {
+
+    return [...new Set(numbers)];
+
+}
+
+
+// =====================================================
+// OCR D'UNE IMAGE
+// =====================================================
+
+async function readImage(worker, file, photoNumber) {
+
+    status.textContent =
+        "📷 Préparation de la photo " +
+        photoNumber + "...";
+
+
+    const img =
+        await loadImage(file);
+
+
+    let bestNumbers = [];
+
+    let bestText = "";
+
+
+    /*
+       On essaye 3 versions :
+
+       0 = originale
+       1 = contraste
+       2 = noir/blanc
+    */
+
+    for (let mode = 0; mode <= 2; mode++) {
+
+        status.textContent =
+            "🔎 Lecture " +
+            photoNumber +
+            " — traitement " +
+            (mode + 1) +
+            "/3...";
+
+
+        const canvas =
+            processImage(img, mode);
+
+
+        const { data } =
+            await worker.recognize(canvas);
+
+
+        const found =
+            extractNumbers(data.text);
+
+
+        /*
+           On conserve le résultat
+           qui contient le plus de numéros.
+        */
+
+        if (found.length > bestNumbers.length) {
+
+            bestNumbers =
+                found;
+
+            bestText =
+                data.text;
+
+        }
+
+    }
+
+
+    return {
+        numbers: bestNumbers,
+        text: bestText
+    };
+
+}
+
+
+// =====================================================
+// AFFICHAGE
+// =====================================================
 
 function displayResults(numbers) {
 
     const counts = {};
 
+
     numbers.forEach(number => {
 
-        counts[number] = (counts[number] || 0) + 1;
+        counts[number] =
+            (counts[number] || 0) + 1;
 
     });
 
 
-    const uniqueNumbers = Object.keys(counts);
+    const uniqueNumbers =
+        Object.keys(counts);
 
-    duplicateNumbers = uniqueNumbers.filter(
-        number => counts[number] > 1
-    );
+
+    duplicateNumbers =
+        uniqueNumbers.filter(
+            number => counts[number] > 1
+        );
 
 
     summary.innerHTML = `
+
         <div class="success">
-            <strong>Résultat :</strong><br><br>
-            📊 Numéros détectés : <strong>${numbers.length}</strong><br>
-            📱 Numéros différents : <strong>${uniqueNumbers.length}</strong><br>
-            🔁 Numéros répétés : <strong>${duplicateNumbers.length}</strong>
+
+            📊 Occurrences détectées :
+            <strong>${numbers.length}</strong>
+
+            <br><br>
+
+            📱 Numéros différents :
+            <strong>${uniqueNumbers.length}</strong>
+
+            <br><br>
+
+            🔁 Numéros répétés :
+            <strong>${duplicateNumbers.length}</strong>
+
         </div>
+
     `;
 
 
-    result.innerHTML = "<h3>🔁 Doublons</h3>";
+    result.innerHTML =
+        "<h3>🔁 Numéros répétés</h3>";
 
 
     if (duplicateNumbers.length === 0) {
 
         result.innerHTML += `
+
             <div class="warning">
                 Aucun numéro répété trouvé.
             </div>
+
         `;
 
     } else {
@@ -303,216 +572,283 @@ function displayResults(numbers) {
             .forEach(number => {
 
                 result.innerHTML += `
+
                     <div class="number duplicate">
-                        ${number} — ${counts[number]} fois
+
+                        ${number}
+                        —
+                        ${counts[number]} fois
+
                     </div>
+
                 `;
 
             });
 
-        copyDuplicates.style.display = "block";
+        copyDuplicates.style.display =
+            "block";
+
     }
 
 
-    // Affichage de tous les numéros
+    result.innerHTML +=
+        "<h3>📋 Tous les numéros</h3>";
 
-    result.innerHTML += "<h3>📋 Tous les numéros</h3>";
 
     uniqueNumbers
         .sort()
         .forEach(number => {
 
             result.innerHTML += `
+
                 <div class="number">
-                    ${number} — ${counts[number]} fois
+
+                    ${number}
+                    —
+                    ${counts[number]} fois
+
                 </div>
+
             `;
 
         });
 
-    copyAll.style.display = "block";
+
+    copyAll.style.display =
+        "block";
+
 }
 
 
-// --------------------------------------------------
-// OCR
-// --------------------------------------------------
+// =====================================================
+// BOUTON PRINCIPAL
+// =====================================================
 
-startButton.addEventListener("click", async () => {
+startButton.addEventListener(
+    "click",
+    async () => {
 
-    if (!photos.files.length) {
+        if (!photos.files.length) {
 
-        alert("Sélectionne au moins une photo.");
+            alert(
+                "Sélectionne au moins une photo."
+            );
 
-        return;
-    }
-
-
-    startButton.disabled = true;
-
-    result.innerHTML = "";
-    summary.innerHTML = "";
-    copyDuplicates.style.display = "none";
-    copyAll.style.display = "none";
-
-    numbersFound = [];
-
-    let allOCR = "";
-
-
-    try {
-
-        status.textContent =
-            "⏳ Initialisation de la lecture OCR...";
-
-
-        const worker = await createWorker("fra");
-
-
-        for (let i = 0; i < photos.files.length; i++) {
-
-            const file = photos.files[i];
-
-            status.textContent =
-                `📷 Lecture de la photo ${i + 1} sur ${photos.files.length}...`;
-
-
-            const { data } = await worker.recognize(file);
-
-
-            allOCR +=
-                `\n\n===== PHOTO ${i + 1} =====\n\n` +
-                data.text;
-
-
-            const found = extractNumbers(data.text);
-
-
-            numbersFound.push(...found);
-
-
-            status.textContent =
-                `📷 Photo ${i + 1} : ${found.length} numéro(s) détecté(s)`;
+            return;
         }
 
 
-        await worker.terminate();
+        startButton.disabled =
+            true;
 
 
-        /*
-           Important :
-           On ne supprime PAS les répétitions ici.
-           Chaque occurrence doit être conservée
-           pour pouvoir compter combien de fois
-           le numéro apparaît.
-        */
+        numbersFound = [];
+
+        duplicateNumbers = [];
 
 
-        ocrText.textContent = allOCR;
+        summary.innerHTML = "";
+
+        result.innerHTML = "";
+
+        ocrText.textContent = "";
 
 
-        status.textContent =
-            "✅ Lecture terminée.";
+        copyDuplicates.style.display =
+            "none";
+
+        copyAll.style.display =
+            "none";
 
 
-        displayResults(numbersFound);
+        try {
+
+            status.textContent =
+                "⏳ Démarrage de l'OCR...";
 
 
-    } catch (error) {
+            const worker =
+                await createWorker("fra");
 
-        console.error(error);
 
-        status.textContent =
-            "❌ Une erreur est survenue pendant la lecture.";
+            let completeOCR = "";
 
-        alert(
-            "Impossible de lire la photo. Essaie avec une photo plus nette."
-        );
+
+            for (
+                let i = 0;
+                i < photos.files.length;
+                i++
+            ) {
+
+                const file =
+                    photos.files[i];
+
+
+                const output =
+                    await readImage(
+                        worker,
+                        file,
+                        i + 1
+                    );
+
+
+                numbersFound.push(
+                    ...output.numbers
+                );
+
+
+                completeOCR +=
+                    "\n\n===== PHOTO " +
+                    (i + 1) +
+                    " =====\n\n" +
+                    output.text;
+
+
+                status.textContent =
+                    "✅ Photo " +
+                    (i + 1) +
+                    " : " +
+                    output.numbers.length +
+                    " numéro(s) détecté(s)";
+
+
+            }
+
+
+            await worker.terminate();
+
+
+            ocrText.textContent =
+                completeOCR;
+
+
+            displayResults(
+                numbersFound
+            );
+
+
+            status.textContent =
+                "✅ Lecture terminée";
+
+
+        }
+
+        catch (error) {
+
+            console.error(error);
+
+
+            status.textContent =
+                "❌ Erreur pendant la lecture";
+
+
+            alert(
+                "Une erreur est survenue. " +
+                "Essaie avec une photo plus nette."
+            );
+
+        }
+
+
+        startButton.disabled =
+            false;
 
     }
+);
 
 
-    startButton.disabled = false;
+// =====================================================
+// COPIER LES DOUBLONS
+// =====================================================
 
-});
+copyDuplicates.addEventListener(
+    "click",
+    async () => {
 
-
-// --------------------------------------------------
-// Copier les doublons
-// --------------------------------------------------
-
-copyDuplicates.addEventListener("click", async () => {
-
-    const counts = {};
-
-    numbersFound.forEach(number => {
-
-        counts[number] = (counts[number] || 0) + 1;
-
-    });
+        const counts = {};
 
 
-    const text = duplicateNumbers
-        .sort()
-        .map(number =>
-            `${number} — ${counts[number]} fois`
-        )
-        .join("\n");
+        numbersFound.forEach(number => {
+
+            counts[number] =
+                (counts[number] || 0) + 1;
+
+        });
 
 
-    await navigator.clipboard.writeText(text);
+        const text =
+            duplicateNumbers
+                .sort()
+                .map(number =>
+                    `${number} — ${counts[number]} fois`
+                )
+                .join("\n");
 
-    copyDuplicates.textContent =
-        "✅ Doublons copiés !";
 
+        await navigator.clipboard
+            .writeText(text);
 
-    setTimeout(() => {
 
         copyDuplicates.textContent =
-            "Copier les doublons";
-
-    }, 2000);
-
-});
+            "✅ Doublons copiés";
 
 
-// --------------------------------------------------
-// Copier tous les numéros
-// --------------------------------------------------
+        setTimeout(() => {
 
-copyAll.addEventListener("click", async () => {
+            copyDuplicates.textContent =
+                "Copier les doublons";
 
-    const counts = {};
+        }, 2000);
 
-    numbersFound.forEach(number => {
-
-        counts[number] = (counts[number] || 0) + 1;
-
-    });
+    }
+);
 
 
-    const text = Object.keys(counts)
-        .sort()
-        .map(number =>
-            `${number} — ${counts[number]} fois`
-        )
-        .join("\n");
+// =====================================================
+// COPIER TOUS LES NUMEROS
+// =====================================================
+
+copyAll.addEventListener(
+    "click",
+    async () => {
+
+        const counts = {};
 
 
-    await navigator.clipboard.writeText(text);
+        numbersFound.forEach(number => {
 
-    copyAll.textContent =
-        "✅ Tous les numéros copiés !";
+            counts[number] =
+                (counts[number] || 0) + 1;
+
+        });
 
 
-    setTimeout(() => {
+        const text =
+            Object.keys(counts)
+                .sort()
+                .map(number =>
+                    `${number} — ${counts[number]} fois`
+                )
+                .join("\n");
+
+
+        await navigator.clipboard
+            .writeText(text);
+
 
         copyAll.textContent =
-            "Copier tous les numéros";
+            "✅ Numéros copiés";
 
-    }, 2000);
 
-});
+        setTimeout(() => {
+
+            copyAll.textContent =
+                "Copier tous les numéros";
+
+        }, 2000);
+
+    }
+);
 
 </script>
 
