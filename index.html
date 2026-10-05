@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Numéros doublons</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -28,54 +27,69 @@ h1 {
 
 .card {
     background: white;
-    padding: 15px;
-    border-radius: 12px;
+    padding: 18px;
+    border-radius: 14px;
     margin-top: 15px;
-}
-
-button {
-    width: 100%;
-    padding: 15px;
-    border: 0;
-    border-radius: 10px;
-    background: #007aff;
-    color: white;
-    font-size: 17px;
-    font-weight: bold;
-    margin: 6px 0;
-}
-
-button:disabled {
-    background: #aaa;
 }
 
 input[type="file"] {
     display: none;
 }
 
-.fileButton {
+.chooseButton {
     display: block;
     width: 100%;
     box-sizing: border-box;
-    padding: 15px;
-    border-radius: 10px;
-    background: #34a853;
-    color: white;
+    padding: 16px;
+    margin: 8px 0;
+    border-radius: 12px;
     text-align: center;
+    color: white;
     font-size: 17px;
     font-weight: bold;
-    margin: 6px 0;
     cursor: pointer;
 }
 
-.cameraButton {
+.library {
+    background: #34a853;
+}
+
+.camera {
     background: #ff9500;
+}
+
+#analyze {
+    width: 100%;
+    padding: 16px;
+    margin-top: 12px;
+    border: 0;
+    border-radius: 12px;
+    background: #007aff;
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+}
+
+#analyze:disabled {
+    background: #999;
+}
+
+#progress {
+    text-align: center;
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+#photosInfo {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 15px;
 }
 
 .number {
     font-family: monospace;
     font-size: 17px;
-    padding: 6px 0;
+    padding: 7px 0;
 }
 
 .duplicate {
@@ -85,18 +99,8 @@ input[type="file"] {
 
 .warning {
     color: #a05a00;
-    padding: 5px 0;
-}
-
-#progress {
-    margin-top: 15px;
-    text-align: center;
-    font-weight: bold;
-}
-
-#selectedPhotos {
-    margin-top: 10px;
-    font-size: 14px;
+    padding: 6px 0;
+    word-break: break-word;
 }
 </style>
 </head>
@@ -109,41 +113,58 @@ input[type="file"] {
 
 <div class="card">
 
-    <h3>1️⃣ Ajouter les photos</h3>
+    <h3>Ajouter les photos</h3>
 
-    <!-- Bibliothèque -->
-    <label class="fileButton">
+    <!-- ============================= -->
+    <!-- BOUTON BIBLIOTHÈQUE PHOTOS -->
+    <!-- ============================= -->
+
+    <label class="chooseButton library">
+
         🖼️ Choisir dans la bibliothèque
+
         <input
             id="libraryInput"
             type="file"
             accept="image/*"
             multiple
         >
+
     </label>
 
-    <!-- Appareil photo -->
-    <label class="fileButton cameraButton">
-        📷 Prendre une photo
+
+    <!-- ============================= -->
+    <!-- BOUTON CAMÉRA -->
+    <!-- ============================= -->
+
+    <label class="chooseButton camera">
+
+        📷 Prendre une photo avec la caméra
+
         <input
             id="cameraInput"
             type="file"
             accept="image/*"
             capture="environment"
         >
+
     </label>
 
-    <div id="selectedPhotos">
+
+    <div id="photosInfo">
         Aucune photo sélectionnée.
     </div>
 
-    <button id="start">
+
+    <button id="analyze">
         🔍 Lire les numéros
     </button>
+
 
     <div id="progress"></div>
 
 </div>
+
 
 <div id="summary"></div>
 
@@ -151,10 +172,14 @@ input[type="file"] {
 
 <div id="verify"></div>
 
-</div>
-
 
 <script>
+
+// ========================================================
+// VARIABLES
+// ========================================================
+
+let selectedFiles = [];
 
 const libraryInput =
     document.getElementById("libraryInput");
@@ -162,75 +187,81 @@ const libraryInput =
 const cameraInput =
     document.getElementById("cameraInput");
 
-const startButton =
-    document.getElementById("start");
+const analyzeButton =
+    document.getElementById("analyze");
+
+const photosInfo =
+    document.getElementById("photosInfo");
 
 const progress =
     document.getElementById("progress");
 
-const selectedPhotos =
-    document.getElementById("selectedPhotos");
 
-
-// Toutes les photos ajoutées
-let selectedFiles = [];
-
-
-// ---------------------------------------------------------
-// Bibliothèque
-// ---------------------------------------------------------
+// ========================================================
+// BIBLIOTHÈQUE
+// ========================================================
 
 libraryInput.addEventListener("change", function() {
 
-    const files = Array.from(this.files);
+    const files =
+        Array.from(this.files);
 
-    selectedFiles.push(...files);
+    if (files.length > 0) {
 
-    updatePhotoList();
+        selectedFiles.push(...files);
 
-    // Permet de sélectionner à nouveau les mêmes photos
+        updatePhotosInfo();
+    }
+
+    // Permet de choisir à nouveau les mêmes photos
     this.value = "";
 });
 
 
-// ---------------------------------------------------------
-// Appareil photo
-// ---------------------------------------------------------
+// ========================================================
+// CAMÉRA
+// ========================================================
 
 cameraInput.addEventListener("change", function() {
 
-    const files = Array.from(this.files);
+    const files =
+        Array.from(this.files);
 
-    selectedFiles.push(...files);
+    if (files.length > 0) {
 
-    updatePhotoList();
+        selectedFiles.push(...files);
+
+        updatePhotosInfo();
+    }
 
     this.value = "";
 });
 
 
-// ---------------------------------------------------------
-// Affichage des photos sélectionnées
-// ---------------------------------------------------------
+// ========================================================
+// AFFICHER LE NOMBRE DE PHOTOS
+// ========================================================
 
-function updatePhotoList() {
+function updatePhotosInfo() {
 
     if (selectedFiles.length === 0) {
 
-        selectedPhotos.textContent =
+        photosInfo.textContent =
             "Aucune photo sélectionnée.";
 
         return;
     }
 
-    selectedPhotos.innerHTML =
-        `📸 ${selectedFiles.length} photo(s) sélectionnée(s).`;
+    photosInfo.textContent =
+        "📸 " +
+        selectedFiles.length +
+        " photo(s) sélectionnée(s).";
 }
 
 
-// ---------------------------------------------------------
-// Chargement image
-// ---------------------------------------------------------
+// ========================================================
+// CHARGER UNE IMAGE
+// ========================================================
 
 function loadImage(file) {
 
@@ -238,18 +269,23 @@ function loadImage(file) {
 
         const img = new Image();
 
-        img.onload = () => resolve(img);
+        img.onload = function() {
+            resolve(img);
+        };
 
-        img.onerror = reject;
+        img.onerror = function() {
+            reject(new Error("Impossible de charger l'image"));
+        };
 
-        img.src = URL.createObjectURL(file);
+        img.src =
+            URL.createObjectURL(file);
     });
 }
 
 
-// ---------------------------------------------------------
-// Préparation image
-// ---------------------------------------------------------
+// ========================================================
+// PRÉPARER L'IMAGE
+// ========================================================
 
 function preprocessImage(img) {
 
@@ -258,22 +294,31 @@ function preprocessImage(img) {
 
     const maxWidth = 2500;
 
-    let width = img.naturalWidth;
-    let height = img.naturalHeight;
+    let width =
+        img.naturalWidth;
+
+    let height =
+        img.naturalHeight;
+
 
     if (width > maxWidth) {
 
         const ratio =
             maxWidth / width;
 
-        width = maxWidth;
+        width =
+            maxWidth;
 
         height =
-            Math.round(height * ratio);
+            Math.round(
+                height * ratio
+            );
     }
+
 
     canvas.width = width;
     canvas.height = height;
+
 
     const ctx =
         canvas.getContext("2d");
@@ -286,6 +331,7 @@ function preprocessImage(img) {
         height
     );
 
+
     const imageData =
         ctx.getImageData(
             0,
@@ -294,37 +340,53 @@ function preprocessImage(img) {
             height
         );
 
+
     const data =
         imageData.data;
 
+
+    // Amélioration du contraste
     for (
         let i = 0;
         i < data.length;
         i += 4
     ) {
 
-        let r = data[i];
-        let g = data[i + 1];
-        let b = data[i + 2];
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
 
         let gray =
             0.299 * r +
             0.587 * g +
             0.114 * b;
 
+
         gray =
             (gray - 128) * 1.5 + 128;
+
 
         gray =
             Math.max(
                 0,
-                Math.min(255, gray)
+                Math.min(
+                    255,
+                    gray
+                )
             );
 
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
+
+        data[i] =
+            gray;
+
+        data[i + 1] =
+            gray;
+
+        data[i + 2] =
+            gray;
     }
+
 
     ctx.putImageData(
         imageData,
@@ -332,41 +394,47 @@ function preprocessImage(img) {
         0
     );
 
+
     return canvas;
 }
 
 
-// ---------------------------------------------------------
-// Recherche numéro 212xxxxxxxxx
-// ---------------------------------------------------------
+// ========================================================
+// EXTRAIRE UN NUMÉRO 212XXXXXXXXX
+// ========================================================
 
 function extractPhone(text) {
 
-    if (!text) return null;
+    if (!text) {
+        return null;
+    }
 
-    let s = text
+
+    let s =
+        text
         .replace(/\s/g, "")
         .replace(/[|Il]/g, "1")
         .replace(/[OoQ]/g, "0");
 
-    const matches =
-        s.match(/212\d{9}/g);
 
-    if (
-        matches &&
-        matches.length > 0
-    ) {
+    // Recherche de 212 + 9 chiffres
+    const match =
+        s.match(/212\d{9}/);
 
-        return matches[0];
+
+    if (match) {
+
+        return match[0];
     }
+
 
     return null;
 }
 
 
-// ---------------------------------------------------------
-// Détection des lignes
-// ---------------------------------------------------------
+// ========================================================
+// DÉTECTER LES LIGNES
+// ========================================================
 
 async function detectLines(
     worker,
@@ -374,15 +442,20 @@ async function detectLines(
 ) {
 
     const result =
-        await worker.recognize(canvas);
+        await worker.recognize(
+            canvas
+        );
 
-    return result.data.lines || [];
+
+    return (
+        result.data.lines || []
+    );
 }
 
 
-// ---------------------------------------------------------
-// Lecture d'une ligne
-// ---------------------------------------------------------
+// ========================================================
+// LIRE UNE LIGNE
+// ========================================================
 
 async function readLine(
     worker,
@@ -393,14 +466,20 @@ async function readLine(
     const x =
         Math.max(
             0,
-            Math.floor(line.bbox.x0)
+            Math.floor(
+                line.bbox.x0
+            )
         );
+
 
     const y =
         Math.max(
             0,
-            Math.floor(line.bbox.y0)
+            Math.floor(
+                line.bbox.y0
+            )
         );
+
 
     const width =
         Math.min(
@@ -411,6 +490,7 @@ async function readLine(
             )
         );
 
+
     const height =
         Math.min(
             canvas.height - y,
@@ -420,16 +500,18 @@ async function readLine(
             )
         );
 
+
     if (
         width <= 0 ||
         height <= 0
     ) {
-
-        return null;
+        return "";
     }
 
 
-    // Première colonne uniquement
+    // On ne prend que la partie gauche.
+    // Le numéro 212... est dans la première colonne.
+
     const cropWidth =
         Math.min(
             width,
@@ -440,13 +522,21 @@ async function readLine(
 
 
     const crop =
-        document.createElement("canvas");
+        document.createElement(
+            "canvas"
+        );
 
-    crop.width = cropWidth;
-    crop.height = height;
+
+    crop.width =
+        cropWidth;
+
+    crop.height =
+        height;
+
 
     const ctx =
         crop.getContext("2d");
+
 
     ctx.drawImage(
         canvas,
@@ -462,17 +552,22 @@ async function readLine(
 
 
     const result =
-        await worker.recognize(crop);
+        await worker.recognize(
+            crop
+        );
 
-    return result.data.text || "";
+
+    return (
+        result.data.text || ""
+    );
 }
 
 
-// ---------------------------------------------------------
-// Analyse
-// ---------------------------------------------------------
+// ========================================================
+// ANALYSER LES PHOTOS
+// ========================================================
 
-startButton.addEventListener(
+analyzeButton.addEventListener(
     "click",
     async function() {
 
@@ -481,17 +576,19 @@ startButton.addEventListener(
         ) {
 
             alert(
-                "Ajoute au moins une photo."
+                "Choisis ou prends au moins une photo."
             );
 
             return;
         }
 
 
-        startButton.disabled = true;
+        analyzeButton.disabled =
+            true;
 
 
         let allNumbers = [];
+
         let allWarnings = [];
 
         let totalLines = 0;
@@ -516,38 +613,53 @@ startButton.addEventListener(
 
         try {
 
+            // =========================================
+            // CHAQUE PHOTO
+            // =========================================
+
             for (
                 let photoIndex = 0;
-                photoIndex < selectedFiles.length;
+                photoIndex <
+                selectedFiles.length;
                 photoIndex++
             ) {
 
                 const file =
-                    selectedFiles[photoIndex];
+                    selectedFiles[
+                        photoIndex
+                    ];
 
 
                 progress.textContent =
-                    `📷 Photo ${
-                        photoIndex + 1
-                    }/${
-                        selectedFiles.length
-                    } : préparation...`;
+                    "📷 Photo " +
+                    (photoIndex + 1) +
+                    "/" +
+                    selectedFiles.length +
+                    " : préparation...";
 
 
                 const img =
-                    await loadImage(file);
+                    await loadImage(
+                        file
+                    );
 
 
                 const canvas =
-                    preprocessImage(img);
+                    preprocessImage(
+                        img
+                    );
 
+
+                // =====================================
+                // DÉTECTION DES LIGNES
+                // =====================================
 
                 progress.textContent =
-                    `🔎 Photo ${
-                        photoIndex + 1
-                    }/${
-                        selectedFiles.length
-                    } : recherche des lignes...`;
+                    "🔎 Photo " +
+                    (photoIndex + 1) +
+                    "/" +
+                    selectedFiles.length +
+                    " : recherche des lignes...";
 
 
                 const lines =
@@ -566,14 +678,18 @@ startButton.addEventListener(
                 ) {
 
                     allWarnings.push(
-                        `Photo ${
-                            photoIndex + 1
-                        } : aucune ligne détectée`
+                        "Photo " +
+                        (photoIndex + 1) +
+                        " : aucune ligne détectée."
                     );
 
                     continue;
                 }
 
+
+                // =====================================
+                // LECTURE LIGNE PAR LIGNE
+                // =====================================
 
                 for (
                     let i = 0;
@@ -582,15 +698,14 @@ startButton.addEventListener(
                 ) {
 
                     progress.textContent =
-                        `📖 Photo ${
-                            photoIndex + 1
-                        }/${
-                            selectedFiles.length
-                        } — ligne ${
-                            i + 1
-                        }/${
-                            lines.length
-                        }`;
+                        "📖 Photo " +
+                        (photoIndex + 1) +
+                        "/" +
+                        selectedFiles.length +
+                        " — ligne " +
+                        (i + 1) +
+                        "/" +
+                        lines.length;
 
 
                     const text =
@@ -602,14 +717,17 @@ startButton.addEventListener(
 
 
                     const phone =
-                        extractPhone(text);
+                        extractPhone(
+                            text
+                        );
 
 
                     if (phone) {
 
                         allNumbers.push({
 
-                            number: phone,
+                            number:
+                                phone,
 
                             photo:
                                 photoIndex + 1,
@@ -636,6 +754,7 @@ startButton.addEventListener(
                 }
             }
 
+
         } catch (error) {
 
             console.error(error);
@@ -644,12 +763,15 @@ startButton.addEventListener(
                 "Une erreur est survenue pendant la lecture."
             );
 
+
         } finally {
 
             await worker.terminate();
 
+
             progress.textContent =
                 "✅ Analyse terminée.";
+
 
             displayResults(
                 totalLines,
@@ -657,15 +779,17 @@ startButton.addEventListener(
                 allWarnings
             );
 
-            startButton.disabled = false;
+
+            analyzeButton.disabled =
+                false;
         }
     }
 );
 
 
-// ---------------------------------------------------------
-// Résultats
-// ---------------------------------------------------------
+// ========================================================
+// AFFICHER LES RÉSULTATS
+// ========================================================
 
 function displayResults(
     totalLines,
@@ -678,10 +802,12 @@ function displayResults(
             "summary"
         );
 
+
     const duplicatesDiv =
         document.getElementById(
             "duplicates"
         );
+
 
     const verifyDiv =
         document.getElementById(
@@ -689,27 +815,43 @@ function displayResults(
         );
 
 
+    // =====================================
+    // COMPTAGE
+    // =====================================
+
     const counts = {};
 
 
-    allNumbers.forEach(item => {
+    allNumbers.forEach(
+        item => {
 
-        if (!counts[item.number]) {
+            if (
+                !counts[item.number]
+            ) {
 
-            counts[item.number] = [];
+                counts[item.number] =
+                    [];
+            }
+
+
+            counts[item.number]
+                .push(item);
         }
-
-        counts[item.number].push(item);
-    });
+    );
 
 
     const duplicates =
-        Object.entries(counts)
-        .filter(
+        Object.entries(
+            counts
+        ).filter(
             ([number, items]) =>
                 items.length > 1
         );
 
+
+    // =====================================
+    // RÉSUMÉ
+    // =====================================
 
     summary.innerHTML = `
 
@@ -751,7 +893,9 @@ function displayResults(
     `;
 
 
-    // Doublons
+    // =====================================
+    // DOUBLONS
+    // =====================================
 
     if (
         duplicates.length > 0
@@ -772,11 +916,14 @@ function displayResults(
 
                 html += `
 
-                    <div class="number duplicate">
+                    <div
+                        class="number duplicate"
+                    >
 
                         ${number}
 
-                        — ${items.length} fois
+                        — ${items.length}
+                        fois
 
                     </div>
                 `;
@@ -787,7 +934,18 @@ function displayResults(
         html += `
 
                 <button
-                    onclick="copyDuplicates()"
+                    id="copyButton"
+                    style="
+                        width:100%;
+                        padding:14px;
+                        margin-top:10px;
+                        border:0;
+                        border-radius:10px;
+                        background:#007aff;
+                        color:white;
+                        font-size:16px;
+                        font-weight:bold;
+                    "
                 >
                     📋 Copier les doublons
                 </button>
@@ -798,6 +956,39 @@ function displayResults(
 
         duplicatesDiv.innerHTML =
             html;
+
+
+        document
+            .getElementById(
+                "copyButton"
+            )
+            .addEventListener(
+                "click",
+                function() {
+
+                    const numbers =
+                        duplicates.map(
+                            ([number]) =>
+                                number
+                        );
+
+
+                    navigator
+                        .clipboard
+                        .writeText(
+                            numbers.join(
+                                "\n"
+                            )
+                        );
+
+
+                    alert(
+                        numbers.length +
+                        " doublon(s) copié(s)."
+                    );
+                }
+            );
+
 
     } else {
 
@@ -814,7 +1005,9 @@ function displayResults(
     }
 
 
-    // À vérifier
+    // =====================================
+    // À VÉRIFIER
+    // =====================================
 
     if (
         allWarnings.length > 0
@@ -829,45 +1022,50 @@ function displayResults(
                 </h2>
 
                 <p>
-                    Certaines lignes n'ont pas
-                    permis de reconnaître clairement
+                    Ces lignes n'ont pas permis
+                    de reconnaître clairement
                     un numéro 212...
                 </p>
         `;
 
 
-        allWarnings.forEach(item => {
+        allWarnings.forEach(
+            item => {
 
-            if (
-                typeof item === "string"
-            ) {
+                if (
+                    typeof item ===
+                    "string"
+                ) {
 
-                html += `
+                    html += `
 
-                    <div class="warning">
-                        ${item}
-                    </div>
-                `;
+                        <div class="warning">
+                            ${item}
+                        </div>
+                    `;
 
-            } else {
+                } else {
 
-                html += `
+                    html += `
 
-                    <div class="warning">
+                        <div class="warning">
 
-                        Photo ${item.photo},
-                        ligne ${item.line}
+                            Photo ${item.photo},
+                            ligne ${item.line}
 
-                        — OCR :
+                            — OCR :
 
-                        <b>
-                            ${escapeHtml(item.text)}
-                        </b>
+                            <b>
+                                ${escapeHtml(
+                                    item.text
+                                )}
+                            </b>
 
-                    </div>
-                `;
+                        </div>
+                    `;
+                }
             }
-        });
+        );
 
 
         html += `
@@ -878,6 +1076,7 @@ function displayResults(
         verifyDiv.innerHTML =
             html;
 
+
     } else {
 
         verifyDiv.innerHTML = `
@@ -885,7 +1084,8 @@ function displayResults(
             <div class="card">
 
                 <h2>
-                    ✅ Toutes les lignes ont été reconnues
+                    ✅ Toutes les lignes
+                    ont été reconnues
                 </h2>
 
             </div>
@@ -894,59 +1094,9 @@ function displayResults(
 }
 
 
-// ---------------------------------------------------------
-// Copier les doublons
-// ---------------------------------------------------------
-
-function copyDuplicates() {
-
-    const counts = {};
-
-
-    // Il faudrait récupérer les numéros
-    // depuis le résultat affiché.
-    const elements =
-        document.querySelectorAll(
-            ".duplicate"
-        );
-
-
-    const numbers = [];
-
-
-    elements.forEach(element => {
-
-        const text =
-            element.textContent.trim();
-
-        const match =
-            text.match(
-                /212\d{9}/
-            );
-
-        if (match) {
-
-            numbers.push(
-                match[0]
-            );
-        }
-    });
-
-
-    navigator.clipboard.writeText(
-        numbers.join("\n")
-    );
-
-
-    alert(
-        `${numbers.length} doublon(s) copié(s).`
-    );
-}
-
-
-// ---------------------------------------------------------
-// Sécurité
-// ---------------------------------------------------------
+// ========================================================
+// PROTECTION HTML
+// ========================================================
 
 function escapeHtml(text) {
 
