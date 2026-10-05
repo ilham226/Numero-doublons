@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Numéros répétés</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:20px;background:#f5f5f7;color:#111}
+.box{max-width:600px;margin:auto}
+h1{text-align:center}
+button,.file{width:100%;padding:15px;margin:8px 0;border:0;border-radius:12px;font-size:17px}
+button{background:#007aff;color:white}
+.file{background:white;border:2px dashed #aaa;text-align:center;box-sizing:border-box}
+#result{margin-top:20px}
+.item{background:white;padding:15px;margin:8px 0;border-radius:12px;display:flex;justify-content:space-between}
+.count{font-weight:bold}
+.small{text-align:center;color:#666}
+</style>
+</head>
+
+<body>
+<div class="box">
+
+<h1>📱 Numéros répétés</h1>
+
+<p class="small">
+Ajoute les photos contenant les numéros de téléphone.
+</p>
+
+<label class="file">
+📷 Sélectionner les photos
+<input id="photos" type="file" accept="image/*" multiple style="display:none">
+</label>
+
+<button onclick="analyser()">🔍 Analyser les photos</button>
+
+<button onclick="copier()" style="background:#34c759">
+📋 Copier les doublons
+</button>
+
+<p id="status" class="small"></p>
+
+<div id="result"></div>
+
+</div>
+
+<script>
+
+let numeros = {};
+
+function nettoyerNumero(texte){
+
+    texte = texte
+    .replace(/[Oo]/g,"0")
+    .replace(/[Il]/g,"1")
+    .replace(/[Ss]/g,"5")
+    .replace(/[^\d+]/g,"");
+
+    if(texte.startsWith("+212")){
+        texte = "0" + texte.substring(4);
+    }
+
+    if(texte.startsWith("212") && texte.length === 12){
+        texte = "0" + texte.substring(3);
+    }
+
+    if(/^0[5-7]\d{8}$/.test(texte)){
+        return texte;
+    }
+
+    return null;
+}
+
+async function analyser(){
+
+    const fichiers = document.getElementById("photos").files;
+
+    if(!fichiers.length){
+        alert("Sélectionne d'abord une ou plusieurs photos.");
+        return;
+    }
+
+    document.getElementById("status").innerText =
+        "Lecture des photos en cours...";
+
+    numeros = {};
+
+    try{
+
+        const Tesseract =
+        await import(
+        "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/+esm"
+        );
+
+        const worker =
+        await Tesseract.createWorker("fra");
+
+        for(let i=0;i<fichiers.length;i++){
+
+            document.getElementById("status").innerText =
+            "Lecture de la photo "+(i+1)+" / "+fichiers.length;
+
+            const image = fichiers[i];
+
+            const resultat =
+            await worker.recognize(image);
+
+            const texte = resultat.data.text;
+
+            const candidats =
+            texte.match(
+            /(?:\+212|212|0)?[\s.-]?[5-7](?:[\s.-]?\d){8}/g
+            ) || [];
+
+            candidats.forEach(x=>{
+
+                const n = nettoyerNumero(x);
+
+                if(n){
+                    numeros[n] = (numeros[n] || 0) + 1;
+                }
+
+            });
+        }
+
+        await worker.terminate();
+
+        afficher();
+
+    }catch(e){
+
+        document.getElementById("status").innerText =
+        "Erreur : "+e.message;
+
+    }
+
+}
+
+function afficher(){
+
+    const result =
+    document.getElementById("result");
+
+    result.innerHTML="";
+
+    const doublons =
+    Object.entries(numeros)
+    .filter(([numero,nombre])=>nombre>1)
+    .sort((a,b)=>b[1]-a[1]);
+
+    if(!doublons.length){
+
+        result.innerHTML =
+        "<p class='small'>Aucun numéro répété trouvé.</p>";
+
+    }else{
+
+        doublons.forEach(([numero,nombre])=>{
+
+            result.innerHTML +=
+            `<div class="item">
+            <span>${numero}</span>
+            <span class="count">${nombre} fois</span>
+            </div>`;
+
+        });
+
+    }
+
+    document.getElementById("status").innerText =
+    "Analyse terminée : "+Object.keys(numeros).length+
+    " numéros différents trouvés.";
+
+}
+
+function copier(){
+
+    const doublons =
+    Object.entries(numeros)
+    .filter(([numero,nombre])=>nombre>1)
+    .sort((a,b)=>b[1]-a[1]);
+
+    if(!doublons.length){
+        alert("Aucun doublon à copier.");
+        return;
+    }
+
+    const texte =
+    doublons
+    .map(([numero,nombre])=>numero+" - "+nombre+" fois")
+    .join("\n");
+
+    navigator.clipboard.writeText(texte);
+
+    alert("Les doublons ont été copiés.");
+}
+
+</script>
+
+</body>
+</html>
